@@ -1,0 +1,13 @@
+[package]
+name = "tlock-age"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+age = "0.9.0"
+age-core = "0.9.0"
+anyhow = "1.0.69"
+futures = "0.3.26"
+tlock = { path = "../tlock" }

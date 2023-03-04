@@ -2,5 +2,6 @@
 
 members = [
     "tlock",
+    "tlock-age",
     "tle"
 ]
