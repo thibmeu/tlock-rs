@@ -11,12 +11,16 @@ pub const STANZA_TAG: &str = "tlock";
 // Identity implements the age Identity interface. This is used to decrypt
 // data with the age Decrypt API.
 pub struct Identity {
-    network: tlock::client::Network,
+    hash: Vec<u8>,
+    signature: Vec<u8>,
 }
 
 impl Identity {
-    pub fn new(network: tlock::client::Network) -> Self {
-        Self { network }
+    pub fn new(hash: &[u8], signature: &[u8]) -> Self {
+        Self {
+            hash: hash.to_vec(),
+            signature: signature.to_vec(),
+        }
     }
 }
 
@@ -33,26 +37,22 @@ impl age::Identity for Identity {
         }
         let args: [String; 2] = [stanza.args[0].clone(), stanza.args[1].clone()];
 
-        let _round = match args[0].parse::<u64>() {
+        let round = match args[0].parse::<u64>() {
             Ok(round) => round,
             Err(_err) => return Some(Err(age::DecryptError::InvalidHeader)),
         };
 
-        match futures::executor::block_on(self.network.info()) {
-            Ok(info) => {
-                if info.hash != args[1] {
-                    return Some(Err(age::DecryptError::InvalidHeader));
-                };
-            }
-            Err(_err) => return Some(Err(age::DecryptError::DecryptionFailed)),
-        };
+        let mut src = &stanza.body[..];
+        if round != tlock::decrypt_round(&mut src).unwrap() {
+            return Some(Err(age::DecryptError::DecryptionFailed));
+        }
+
+        if self.hash != hex::decode(&args[1]).unwrap() {
+            return Some(Err(age::DecryptError::InvalidHeader));
+        }
 
         let dst = InMemoryWriter::new();
-        let decryption = futures::executor::block_on(tlock::decrypt(
-            self.network.to_owned(),
-            dst.to_owned(),
-            stanza.body.as_slice(),
-        ));
+        let decryption = tlock::decrypt(dst.to_owned(), src, &self.signature);
         match decryption {
             Ok(_) => {
                 let dst = dst.memory();
@@ -67,13 +67,18 @@ impl age::Identity for Identity {
 /// Recipient implements the age Recipient interface. This is used to encrypt
 /// data with the age Encrypt API.
 pub struct Recipient {
-    network: tlock::client::Network,
+    hash: Vec<u8>,
+    public_key_bytes: Vec<u8>,
     round: u64,
 }
 
 impl Recipient {
-    pub fn new(network: tlock::client::Network, round: u64) -> Self {
-        Self { network, round }
+    pub fn new(hash: &[u8], public_key_bytes: &[u8], round: u64) -> Self {
+        Self {
+            hash: hash.to_vec(),
+            public_key_bytes: public_key_bytes.to_vec(),
+            round,
+        }
     }
 }
 
@@ -111,28 +116,13 @@ impl age::Recipient for Recipient {
     /// age that is used for encrypting/decrypting data. Inside of Wrap we encrypt
     /// the DEK using time lock encryption.
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, age::EncryptError> {
-        let src = file_key.expose_secret().as_slice();
+        let src = &file_key.expose_secret()[..];
         let dst = InMemoryWriter::new();
-        let _ = futures::executor::block_on(tlock::encrypt(
-            self.network.clone(),
-            dst.to_owned(),
-            src,
-            self.round,
-        ));
-        let info = match futures::executor::block_on(self.network.info()) {
-            Ok(info) => info,
-            Err(err) => {
-                return Err(age::EncryptError::Io(io::Error::new(
-                    io::ErrorKind::Other,
-                    err,
-                )))
-            }
-        };
+        let _ = tlock::encrypt(dst.to_owned(), src, &self.public_key_bytes, self.round);
 
-        println!();
         Ok(vec![Stanza {
             tag: STANZA_TAG.to_string(),
-            args: vec![self.round.to_string(), info.hash],
+            args: vec![self.round.to_string(), hex::encode(&self.hash)],
             body: dst.memory(),
         }])
     }
@@ -145,18 +135,22 @@ mod tests {
         iter,
     };
 
+    use drand_core::{chain, http_chain_client};
+
     use crate::{Identity, Recipient};
 
-    #[test]
-    pub fn it_works() {
-        let network = tlock::client::Network::new(
-            "https://pl-us.testnet.drand.sh/",
-            "7672797f548f3f4748ac4bf3352fc6c6b6468c9ad40ad456a397545c6e2df5bf",
-        )
-        .unwrap();
+    #[tokio::test]
+    async fn it_works() {
+        let chain = chain::Chain::new("https://pl-us.testnet.drand.sh/7672797f548f3f4748ac4bf3352fc6c6b6468c9ad40ad456a397545c6e2df5bf");
+        let info = chain.info().await.unwrap();
+
+        use chain::ChainClient;
+        let client = http_chain_client::HttpChainClient::new(chain, None);
+
         let round = 100;
-        let id = Identity::new(network.clone());
-        let recipient = Recipient::new(network, round);
+        let beacon = client.get(round).await.unwrap();
+        let id = Identity::new(&info.hash(), &beacon.signature());
+        let recipient = Recipient::new(&info.hash(), &info.public_key(), round);
 
         let plaintext = [1u8; 100].as_ref();
         let encrypted = {
@@ -181,7 +175,7 @@ mod tests {
             let mut reader = decryptor
                 .decrypt(iter::once(&id as &dyn age::Identity))
                 .unwrap();
-            reader.read_to_end(&mut decrypted);
+            reader.read_to_end(&mut decrypted).unwrap();
 
             decrypted
         };

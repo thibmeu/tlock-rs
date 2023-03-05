@@ -9,5 +9,9 @@ edition = "2021"
 age = "0.9.0"
 age-core = "0.9.0"
 anyhow = "1.0.69"
-futures = "0.3.26"
+hex = "0.4.3"
 tlock = { path = "../tlock" }
+
+[dev-dependencies]
+drand_core = "0.0.2"
+tokio = "1.26.0"

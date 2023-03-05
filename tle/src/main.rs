@@ -1,13 +1,13 @@
-use std::process;
+use crate::args::{Command, LockArgs, Options, UnlockArgs};
 use anyhow::anyhow;
-use std::fs;
 use cli_batteries::version;
+use drand_core::{chain, http_chain_client};
+use std::fs;
+
 use tracing::{info, info_span, Instrument};
-use tlock::client::Network;
-use tlock::time;
-use crate::args::{Options, Command, LockArgs, UnlockArgs};
 
 mod args;
+mod time;
 
 fn main() {
     cli_batteries::run(version!(), app);
@@ -18,38 +18,56 @@ async fn app(opts: Options) -> eyre::Result<()> {
         match command {
             Command::Lock(args) => lock(args).await,
             Command::Unlock(args) => unlock(args).await,
-        }.map_err(|e| eyre::anyhow!(e))?
+        }
+        .map_err(|e| eyre::anyhow!(e))?
     }
 
     Ok(())
 }
 
 async fn lock(args: LockArgs) -> anyhow::Result<()> {
-    let network = Network::new(args.network_host, args.chain_hash).unwrap();
-    let info = network.info().instrument(info_span!("getting network info")).await.unwrap();
+    let chain = chain::Chain::new(&format!("{}/{}", args.network_host, args.chain_hash));
+    let info = chain
+        .info()
+        .instrument(info_span!("getting network info"))
+        .await
+        .unwrap();
 
     let round_number = match args.round_number {
         None => {
-            let d = args.duration.expect("duration is expected if round_number isn't specified").into();
+            let d = args
+                .duration
+                .expect("duration is expected if round_number isn't specified")
+                .into();
             time::round_after(&info, d)
-        },
+        }
         Some(n) => n,
     };
 
     info!("locked until {round_number} round");
 
-    let src = fs::File::open(args.input_path).map_err(|e| anyhow!("error reading input file"))?;
-    let dst = fs::File::create(args.output_path).map_err(|e| anyhow!("error creating output file"))?;
+    let src = fs::File::open(args.input_path).map_err(|_e| anyhow!("error reading input file"))?;
+    let dst =
+        fs::File::create(args.output_path).map_err(|_e| anyhow!("error creating output file"))?;
 
-    tlock::encrypt(network, dst, src, round_number).await
+    tlock::encrypt(dst, src, &chain.info().await?.public_key(), round_number)
 }
 
-
 async fn unlock(args: UnlockArgs) -> anyhow::Result<()> {
-    let network = Network::new(args.network_host, args.chain_hash).unwrap();
+    let chain = chain::Chain::new(&format!("{}/{}", args.network_host, args.chain_hash));
+    let _info = chain
+        .info()
+        .instrument(info_span!("getting network info"))
+        .await
+        .unwrap();
 
-    let src = fs::File::open(args.input_path).map_err(|e| anyhow!("error reading input file"))?;
-    let dst = fs::File::create(args.output_path).map_err(|e| anyhow!("error creating output file"))?;
+    let src = fs::File::open(args.input_path).map_err(|_e| anyhow!("error reading input file"))?;
+    let dst =
+        fs::File::create(args.output_path).map_err(|_e| anyhow!("error creating output file"))?;
 
-    tlock::decrypt(network, dst, src).await
+    use chain::ChainClient;
+    let client = http_chain_client::HttpChainClient::new(chain, None);
+    let round = tlock::decrypt_round(&src)?;
+    let beacon = client.get(round).await?;
+    tlock::decrypt(dst, src, &beacon.signature())
 }

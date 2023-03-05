@@ -22,3 +22,6 @@ unsigned-varint = { version = "0.7", features = [
 ] }
 tracing = "0.1.36"
 itertools = "0.10.5"
+
+[dev-dependencies]
+drand_core = "0.0.2"
