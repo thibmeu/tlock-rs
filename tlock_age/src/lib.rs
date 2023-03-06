@@ -25,8 +25,29 @@ pub fn encrypt<W: Write, R: Read>(
 
     Ok(())
 }
+pub struct Header {
+    round: u64,
+    hash: Vec<u8>,
+}
 
-pub fn decrypt_round<R: Read>(src: R) -> anyhow::Result<u64> {
+impl Header {
+    fn new(round: u64, hash: &[u8]) -> Self {
+        Self {
+            round,
+            hash: hash.to_vec(),
+        }
+    }
+
+    pub fn round(&self) -> u64 {
+        self.round
+    }
+
+    pub fn hash(&self) -> Vec<u8> {
+        self.hash.clone()
+    }
+}
+
+pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header> {
     let identity = HeaderIdentity::new();
     let decryptor = match age::Decryptor::new(src).unwrap() {
         age::Decryptor::Recipients(d) => d,
@@ -34,9 +55,9 @@ pub fn decrypt_round<R: Read>(src: R) -> anyhow::Result<u64> {
     };
 
     decryptor.decrypt(iter::once(&identity as &dyn age::Identity));
-    match identity.round() {
-        Some(round) => Ok(round),
-        None => Err(anyhow!("Cannot decrypt round")),
+    match (identity.round(), identity.hash()) {
+        (Some(round), Some(hash)) => Ok(Header::new(round, &hash)),
+        _ => Err(anyhow!("Cannot decrypt round")),
     }
 }
 
