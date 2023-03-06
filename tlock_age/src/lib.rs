@@ -1,10 +1,12 @@
 mod tle_age;
 
+use anyhow::anyhow;
+
 use std::{
     io::{copy, Read, Write},
     iter,
 };
-use tle_age::{Identity, Recipient};
+use tle_age::{HeaderIdentity, Identity, Recipient};
 
 pub fn encrypt<W: Write, R: Read>(
     mut dst: W,
@@ -24,7 +26,21 @@ pub fn encrypt<W: Write, R: Read>(
     Ok(())
 }
 
-pub async fn decrypt<W: Write, R: Read>(
+pub fn decrypt_round<R: Read>(src: R) -> anyhow::Result<u64> {
+    let identity = HeaderIdentity::new();
+    let decryptor = match age::Decryptor::new(src).unwrap() {
+        age::Decryptor::Recipients(d) => d,
+        _ => unreachable!(),
+    };
+
+    decryptor.decrypt(iter::once(&identity as &dyn age::Identity));
+    match identity.round() {
+        Some(round) => Ok(round),
+        None => Err(anyhow!("Cannot decrypt round")),
+    }
+}
+
+pub fn decrypt<W: Write, R: Read>(
     mut dst: W,
     src: R,
     chain_hash: &[u8],

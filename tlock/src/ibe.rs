@@ -3,7 +3,7 @@ use bls12_381_plus::{ExpandMsgXmd, G1Affine, G2Affine, G2Projective, Scalar};
 use group::{Curve, GroupEncoding};
 use itertools::Itertools;
 use rand::distributions::Uniform;
-use rand::{Rng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::ops::Mul;

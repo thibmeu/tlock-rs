@@ -42,6 +42,7 @@ pub fn decrypt<W: io::Write, R: io::Read>(
     mut src: R,
     signature: &[u8],
 ) -> anyhow::Result<()> {
+    let _round = unsigned_varint::io::read_u64(&mut src).map_err(|e| anyhow!("error reading {e}"));
     let c = {
         let mut u = [0u8; 48];
         src.read_exact(&mut u)

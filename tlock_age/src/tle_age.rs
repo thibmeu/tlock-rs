@@ -37,22 +37,17 @@ impl age::Identity for Identity {
         }
         let args: [String; 2] = [stanza.args[0].clone(), stanza.args[1].clone()];
 
-        let round = match args[0].parse::<u64>() {
+        let _round = match args[0].parse::<u64>() {
             Ok(round) => round,
             Err(_err) => return Some(Err(age::DecryptError::InvalidHeader)),
         };
-
-        let mut src = &stanza.body[..];
-        if round != tlock::decrypt_round(&mut src).unwrap() {
-            return Some(Err(age::DecryptError::DecryptionFailed));
-        }
 
         if self.hash != hex::decode(&args[1]).unwrap() {
             return Some(Err(age::DecryptError::InvalidHeader));
         }
 
         let dst = InMemoryWriter::new();
-        let decryption = tlock::decrypt(dst.to_owned(), src, &self.signature);
+        let decryption = tlock::decrypt(dst.to_owned(), &stanza.body[..], &self.signature);
         match decryption {
             Ok(_) => {
                 let dst = dst.memory();
@@ -61,6 +56,58 @@ impl age::Identity for Identity {
             }
             Err(_err) => Some(Err(age::DecryptError::DecryptionFailed)),
         }
+    }
+}
+
+// Identity implements the age Identity interface. This is used to decrypt
+// data with the age Decrypt API.
+pub struct HeaderIdentity {
+    hash: Mutex<Option<Vec<u8>>>,
+    round: Mutex<Option<u64>>,
+}
+
+impl HeaderIdentity {
+    pub fn new() -> Self {
+        Self {
+            hash: Mutex::new(None),
+            round: Mutex::new(None),
+        }
+    }
+
+    pub fn hash(&self) -> Option<Vec<u8>> {
+        self.hash.lock().unwrap().clone()
+    }
+
+    pub fn round(&self) -> Option<u64> {
+        *self.round.lock().unwrap()
+    }
+}
+
+impl age::Identity for HeaderIdentity {
+    // Unwrap is called by the age Decrypt API and is provided the DEK that was time
+    // lock encrypted by the Wrap function via the Stanza. Inside of Unwrap we extract
+    // tlock header and assign it to the identity.
+    fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, age::DecryptError>> {
+        if stanza.tag != STANZA_TAG {
+            return None;
+        }
+        if stanza.args.len() != 2 {
+            return Some(Err(age::DecryptError::InvalidHeader));
+        }
+        let args: [String; 2] = [stanza.args[0].clone(), stanza.args[1].clone()];
+
+        let round = match args[0].parse::<u64>() {
+            Ok(round) => round,
+            Err(_err) => return Some(Err(age::DecryptError::InvalidHeader)),
+        };
+        let hash = match hex::decode(&args[1]) {
+            Ok(hash) => hash,
+            Err(_) => return Some(Err(age::DecryptError::InvalidHeader)),
+        };
+
+        *self.round.lock().unwrap() = Some(round);
+        *self.hash.lock().unwrap() = Some(hash);
+        None
     }
 }
 

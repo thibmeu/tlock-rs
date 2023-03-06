@@ -50,16 +50,22 @@ async fn lock(args: LockArgs) -> anyhow::Result<()> {
     let dst =
         fs::File::create(args.output_path).map_err(|_e| anyhow!("error creating output file"))?;
 
-    tlock::encrypt(dst, src, &chain.info().await?.public_key(), round_number)
+    let info = chain.info().await?;
+    tlock_age::encrypt(dst, src, &info.hash(), &info.public_key(), round_number)
 }
 
 async fn unlock(args: UnlockArgs) -> anyhow::Result<()> {
     let chain = chain::Chain::new(&format!("{}/{}", args.network_host, args.chain_hash));
-    let _info = chain
+    let info = chain
         .info()
         .instrument(info_span!("getting network info"))
         .await
         .unwrap();
+
+    let src = fs::File::open(args.input_path.clone())
+        .map_err(|_e| anyhow!("error reading input file"))?;
+
+    let round = tlock_age::decrypt_round(src)?;
 
     let src = fs::File::open(args.input_path).map_err(|_e| anyhow!("error reading input file"))?;
     let dst =
@@ -67,7 +73,6 @@ async fn unlock(args: UnlockArgs) -> anyhow::Result<()> {
 
     use chain::ChainClient;
     let client = http_chain_client::HttpChainClient::new(chain, None);
-    let round = tlock::decrypt_round(&src)?;
     let beacon = client.get(round).await?;
-    tlock::decrypt(dst, src, &beacon.signature())
+    tlock_age::decrypt(dst, src, &info.hash(), &beacon.signature())
 }

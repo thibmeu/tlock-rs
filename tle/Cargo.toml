@@ -18,6 +18,7 @@ serde_json = "1"
 humantime = "2.1.0"
 
 tlock = {path = "../tlock"}
+tlock_age = {path = "../tlock_age"}
 drand_core = "0.0.2"
 
 [build-dependencies]
