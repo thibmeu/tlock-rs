@@ -51,7 +51,14 @@ async fn lock(args: LockArgs) -> anyhow::Result<()> {
         fs::File::create(args.output_path).map_err(|_e| anyhow!("error creating output file"))?;
 
     let info = chain.info().await?;
-    tlock_age::encrypt(dst, src, &info.hash(), &info.public_key(), round_number)
+    tlock_age::encrypt(
+        dst,
+        src,
+        true,
+        &info.hash(),
+        &info.public_key(),
+        round_number,
+    )
 }
 
 async fn unlock(args: UnlockArgs) -> anyhow::Result<()> {

@@ -9,8 +9,9 @@ use std::{
 use tle_age::{HeaderIdentity, Identity, Recipient};
 
 pub fn encrypt<W: Write, R: Read>(
-    mut dst: W,
+    dst: W,
     mut src: R,
+    armor: bool,
     chain_hash: &[u8],
     public_key_bytes: &[u8],
     round: u64,
@@ -19,9 +20,15 @@ pub fn encrypt<W: Write, R: Read>(
     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
         .expect("we provided a recipient");
 
-    let mut writer = encryptor.wrap_output(&mut dst).unwrap();
+    let output_format = if armor {
+        age::armor::Format::AsciiArmor
+    } else {
+        age::armor::Format::Binary
+    };
+    let dst = age::armor::ArmoredWriter::wrap_output(dst, output_format)?;
+    let mut writer = encryptor.wrap_output(dst)?;
     copy(&mut src, &mut writer)?;
-    writer.finish().unwrap();
+    writer.finish().and_then(|armor| armor.finish()).unwrap();
 
     Ok(())
 }
@@ -49,7 +56,7 @@ impl Header {
 
 pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header> {
     let identity = HeaderIdentity::new();
-    let decryptor = match age::Decryptor::new(src).unwrap() {
+    let decryptor = match age::Decryptor::new(age::armor::ArmoredReader::new(src)).unwrap() {
         age::Decryptor::Recipients(d) => d,
         _ => unreachable!(),
     };
@@ -68,7 +75,7 @@ pub fn decrypt<W: Write, R: Read>(
     signature: &[u8],
 ) -> anyhow::Result<()> {
     let identity = Identity::new(chain_hash, signature);
-    let decryptor = match age::Decryptor::new(src).unwrap() {
+    let decryptor = match age::Decryptor::new(age::armor::ArmoredReader::new(src)).unwrap() {
         age::Decryptor::Recipients(d) => d,
         _ => unreachable!(),
     };

@@ -8,13 +8,14 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("lock unlock with TLE", |b| {
         b.iter(|| {
-            let mut msg = vec![0u8; 1000 * 1000];
+            let mut msg = vec![0u8; 100];
             msg.fill_with(rand::random);
 
             let mut encrypted = vec![];
             tlock_age::encrypt(
                 black_box(&mut encrypted),
                 black_box(&msg[..]),
+                black_box(true),
                 black_box(&chain_hash),
                 black_box(&pk_bytes),
                 black_box(1000),
