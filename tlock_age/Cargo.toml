@@ -13,5 +13,11 @@ hex = "0.4.3"
 tlock = { path = "../tlock" }
 
 [dev-dependencies]
+criterion = "0.4.0"
 drand_core = "0.0.2"
+rand = "0.8.5"
 tokio = "1.26.0"
+
+[[bench]]
+name = "encrypt_decrypt"
+harness = false

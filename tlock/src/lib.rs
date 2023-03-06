@@ -63,6 +63,10 @@ pub fn decrypt<W: io::Write, R: io::Read>(
 
     let mut pt = time_unlock(signature, &c);
 
+    //note(thibault): I'm not sure why this condition was choosen, but this does not work as expected
+    // it stems to time_unlock always decrypting to 32 bytes
+    // thing is, sometimes, data to be encrypted ends with 0
+    // the following lines destroy this data
     if let Some(i) = pt.iter().rposition(|x| *x != 0) {
         pt.truncate(i + 1);
     }

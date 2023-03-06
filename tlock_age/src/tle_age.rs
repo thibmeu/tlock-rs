@@ -50,7 +50,8 @@ impl age::Identity for Identity {
         let decryption = tlock::decrypt(dst.to_owned(), &stanza.body[..], &self.signature);
         match decryption {
             Ok(_) => {
-                let dst = dst.memory();
+                let mut dst = dst.memory();
+                dst.resize(16, 0);
                 let file_key: [u8; 16] = dst[..].try_into().unwrap();
                 Some(Ok(file_key.into()))
             }
@@ -199,14 +200,15 @@ mod tests {
         let id = Identity::new(&info.hash(), &beacon.signature());
         let recipient = Recipient::new(&info.hash(), &info.public_key(), round);
 
-        let plaintext = [1u8; 100].as_ref();
+        let mut plaintext = vec![0u8; 1000];
+        plaintext.fill_with(rand::random);
         let encrypted = {
             let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
                 .expect("we provided a recipient");
 
             let mut encrypted = vec![];
             let mut writer = encryptor.wrap_output(&mut encrypted).unwrap();
-            writer.write_all(plaintext).unwrap();
+            writer.write_all(&plaintext).unwrap();
             writer.finish().unwrap();
 
             encrypted
