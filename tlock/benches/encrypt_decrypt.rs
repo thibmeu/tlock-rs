@@ -7,9 +7,22 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("lock unlock with TLE", |b| {
         b.iter(|| {
-            let msg = vec![8; 32];
-            let ct = tlock::time_lock(black_box(&pk_bytes), black_box(1000), black_box(msg));
-            let _pt = tlock::time_unlock(black_box(&signature), black_box(&ct));
+            let msg = vec![1u8; 32];
+            let mut encrypted = vec![];
+            tlock::encrypt(
+                black_box(&mut encrypted),
+                black_box(&msg[..]),
+                black_box(&pk_bytes),
+                black_box(1000),
+            );
+
+            let mut decrypted = vec![];
+            tlock::decrypt(
+                black_box(&mut decrypted),
+                black_box(&encrypted[..]),
+                black_box(&signature),
+            );
+            assert_eq!(msg, decrypted);
         })
     });
 }
