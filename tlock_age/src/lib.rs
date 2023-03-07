@@ -61,7 +61,7 @@ pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header> {
         _ => unreachable!(),
     };
 
-    decryptor.decrypt(iter::once(&identity as &dyn age::Identity))?;
+    let _ = decryptor.decrypt(iter::once(&identity as &dyn age::Identity));
     match (identity.round(), identity.hash()) {
         (Some(round), Some(hash)) => Ok(Header::new(round, &hash)),
         _ => Err(anyhow!("Cannot decrypt round")),
