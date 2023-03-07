@@ -15,13 +15,13 @@ fn criterion_benchmark(c: &mut Criterion) {
                 black_box(&msg[..]),
                 black_box(&pk_bytes),
                 black_box(1000),
-            );
+            ).unwrap();
             let mut decrypted = vec![];
             tlock::decrypt(
                 black_box(&mut decrypted),
                 black_box(&encrypted[..]),
                 black_box(&signature),
-            );
+            ).unwrap();
             decrypted.resize(msg.len(), 0);
             assert_eq!(msg, decrypted);
         })

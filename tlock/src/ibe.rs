@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use bls12_381_plus::{ExpandMsgXmd, G1Affine, G2Affine, G2Projective, Scalar};
-use group::{Curve, GroupEncoding};
+use group::Curve;
 use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::Rng;
@@ -39,8 +39,8 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: G1Affine, id: I, msg: M) 
         bls12_381_plus::pairing(&master, &qid)
     };
 
-    /// dirty fix: loop to sample randomness that won't mess up constant time operation.
-    /// otherwise can `Scalar::from_bytes(r).unwrap()` panic from subtle crate
+    // dirty fix: loop to sample randomness that won't mess up constant time operation.
+    // otherwise can `Scalar::from_bytes(r).unwrap()` panic from subtle crate
     let (sigma, r) = loop {
         // 2. Derive random sigma
         let sigma: [u8; BLOCK_SIZE] = (0..BLOCK_SIZE)
