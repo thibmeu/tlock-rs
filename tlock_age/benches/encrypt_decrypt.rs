@@ -19,14 +19,16 @@ fn criterion_benchmark(c: &mut Criterion) {
                 black_box(&chain_hash),
                 black_box(&pk_bytes),
                 black_box(1000),
-            ).unwrap();
+            )
+            .unwrap();
             let mut decrypted = vec![];
             tlock_age::decrypt(
                 black_box(&mut decrypted),
                 black_box(&encrypted[..]),
                 black_box(&chain_hash),
                 black_box(&signature),
-            ).unwrap();
+            )
+            .unwrap();
             assert_eq!(msg, decrypted);
         })
     });
