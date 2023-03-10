@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use bls12_381_plus::{ExpandMsgXmd, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar};
 use group::Curve;
 use itertools::Itertools;
@@ -18,28 +18,23 @@ impl GAffine {
     pub fn projective_pairing(&self, id: &[u8]) -> Gt {
         match self {
             GAffine::G1Affine(g) => {
-                let qid =
-                    G2Projective::hash::<ExpandMsgXmd<Sha256>>(id, H2C_DST).to_affine();
+                let qid = G2Projective::hash::<ExpandMsgXmd<Sha256>>(id, H2C_DST).to_affine();
                 bls12_381_plus::pairing(g, &qid)
             }
             GAffine::G2Affine(g) => {
-                let qid =
-                    G1Projective::hash::<ExpandMsgXmd<Sha256>>(id, H2C_DST).to_affine();
+                let qid = G1Projective::hash::<ExpandMsgXmd<Sha256>>(id, H2C_DST).to_affine();
                 bls12_381_plus::pairing(&qid, g)
             }
         }
     }
 
-    pub fn pairing(&self, other: &GAffine) -> Gt {
-        match self {
-            GAffine::G1Affine(g) => match other {
-                GAffine::G1Affine(_) => unreachable!(),
-                GAffine::G2Affine(other) => bls12_381_plus::pairing(g, other),
-            },
-            GAffine::G2Affine(g) => match other {
-                GAffine::G1Affine(other) => bls12_381_plus::pairing(other, g),
-                GAffine::G2Affine(_) => unreachable!(),
-            },
+    pub fn pairing(&self, other: &GAffine) -> Result<Gt> {
+        match (self, other) {
+            (GAffine::G1Affine(s), GAffine::G2Affine(o)) => Ok(bls12_381_plus::pairing(s, o)),
+            (GAffine::G2Affine(s), GAffine::G1Affine(o)) => Ok(bls12_381_plus::pairing(o, s)),
+            _ => Err(anyhow!(
+                "pairing requires affines to be on different curves"
+            )),
         }
     }
 
@@ -180,7 +175,7 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
     // 1. Compute sigma = V XOR H2(e(rP,private))
     let sigma = {
         let mut hash = sha2::Sha256::new();
-        let r_gid = private.pairing(&c.u);
+        let r_gid = private.pairing(&c.u).unwrap();
         hash.update(b"h2");
         hash.update(r_gid.to_bytes());
         let h_r_git = &hash.finalize().to_vec()[0..BLOCK_SIZE];
