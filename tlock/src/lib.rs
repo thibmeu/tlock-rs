@@ -55,7 +55,7 @@ pub fn encrypt<W: io::Write, R: io::Read>(
 /// tlock relies on BLS, content private key is a BLS signature.
 /// Signature group is assessed based on the public key size.
 ///
-/// Example using a random 32 bytes message, fastnet public key, and round 1000
+/// Example using an 32-byte message, fastnet public key, and round 1000
 ///
 /// ```rust
 /// // curl -sS https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493/public/1000 | jq -r '.signature'
