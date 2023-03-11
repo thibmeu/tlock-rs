@@ -3,7 +3,6 @@ use drand_core::{chain, http_chain_client};
 #[tokio::main]
 async fn main() {
     let chain = chain::Chain::new("https://pl-us.testnet.drand.sh/7672797f548f3f4748ac4bf3352fc6c6b6468c9ad40ad456a397545c6e2df5bf");
-    use chain::ChainClient;
     let client = http_chain_client::HttpChainClient::new(chain, None);
     let info = client.chain().info().await.unwrap();
 
@@ -15,4 +14,5 @@ async fn main() {
     let pt = tlock::time_unlock(&beacon.signature(), &ct);
 
     assert_eq!(msg, pt);
+    println!("Encryption and decryption were successful");
 }
