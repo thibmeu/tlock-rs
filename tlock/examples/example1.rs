@@ -7,12 +7,14 @@ async fn main() {
     let info = client.chain().info().await.unwrap();
 
     let msg = vec![8; 32];
-    let ct = tlock::time_lock(&info.public_key(), 1000, &msg);
+    let mut encrypted = vec![];
+    tlock::encrypt(&mut encrypted, &*msg, &info.public_key(), 1000).unwrap();
 
     let beacon = client.get(1000).await.unwrap();
 
-    let pt = tlock::time_unlock(&beacon.signature(), &ct);
+    let mut decrypted = vec![];
+    tlock::decrypt(&mut decrypted, &*encrypted, &beacon.signature()).unwrap();
 
-    assert_eq!(msg, pt);
+    assert_eq!(msg, decrypted);
     println!("Encryption and decryption were successful");
 }
