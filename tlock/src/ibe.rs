@@ -209,3 +209,24 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
 fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
     a.iter().zip(b.iter()).map(|(a, b)| a ^ b).collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xor_extended_truth_table() {
+        let a = vec![0b00000000u8, 0b11111111, 0b00000000, 0b11111111];
+        let b = vec![0b11111111u8, 0b00000000, 0b00000000, 0b11111111];
+        let x = vec![0b11111111u8, 0b11111111, 0b00000000, 0b00000000];
+        assert_eq!(xor(&a, &b), x);
+    }
+
+    #[test]
+    fn test_xor_empty() {
+        let a = vec![];
+        let b = vec![];
+        let x = vec![];
+        assert_eq!(xor(&a, &b), x);
+    }
+}
