@@ -1,6 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn criterion_benchmark(c: &mut Criterion) {
+    let round = 1000;
     let chain_hash =
         hex::decode("7672797f548f3f4748ac4bf3352fc6c6b6468c9ad40ad456a397545c6e2df5bf").unwrap();
     let pk_bytes = hex::decode("8200fc249deb0148eb918d6e213980c5d01acd7fc251900d9260136da3b54836ce125172399ddc69c4e3e11429b62c11").unwrap();
@@ -18,7 +19,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 black_box(true),
                 black_box(&chain_hash),
                 black_box(&pk_bytes),
-                black_box(1000),
+                black_box(round),
             )
             .unwrap();
             let mut decrypted = vec![];
