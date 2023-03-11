@@ -39,18 +39,3 @@ pub fn next_round(now: u64, period: Duration, genesis: u64) -> (u64, u64) {
 
     (next_round, next_time)
 }
-
-pub fn dur_before(chain_info: &ChainInfo, round: u64) -> Duration {
-    let t = SystemTime::now();
-    let since_epoch = t.duration_since(UNIX_EPOCH).unwrap();
-    let t_unix = since_epoch.as_secs();
-
-    let current = current_round(
-        t_unix,
-        Duration::from_secs(chain_info.period()),
-        chain_info.genesis_time(),
-    );
-    let rounds = (round - current) as u32;
-
-    Duration::from_secs(chain_info.period()) * rounds
-}
