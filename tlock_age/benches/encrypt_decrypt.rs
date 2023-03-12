@@ -16,7 +16,6 @@ fn criterion_benchmark(c: &mut Criterion) {
             tlock_age::encrypt(
                 black_box(&mut encrypted),
                 black_box(&msg[..]),
-                black_box(true),
                 black_box(&chain_hash),
                 black_box(&pk_bytes),
                 black_box(round),

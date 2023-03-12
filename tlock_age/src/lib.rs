@@ -1,3 +1,5 @@
+#[cfg(feature = "armor")]
+pub mod armor;
 mod tle_age;
 
 use anyhow::anyhow;
@@ -10,8 +12,9 @@ use tle_age::{HeaderIdentity, Identity, Recipient};
 
 /// Encrypt using tlock encryption scheme and age encryption.
 ///
-/// round and public key information are stored as an age header.
-/// If armor is true, output bytes are ASCII printable.
+/// `round` and `public_key` information are stored as an age header.
+///
+/// If you want to armor the output to output bytes are ASCII printable, you must enable `armor` feature.
 ///
 /// Example using an empty 100-byte message, fastnet public key, at round 1000
 ///
@@ -22,13 +25,19 @@ use tle_age::{HeaderIdentity, Identity, Recipient};
 /// let round = 1000;
 /// let src = vec![0u8; 1000];
 ///
+/// // without armor
 /// let mut encrypted = vec![];
-/// tlock_age::encrypt(&mut encrypted, &*src, true, &chain_hash, &pk_bytes, round).unwrap();
+/// tlock_age::encrypt(&mut encrypted, &*src, &chain_hash, &pk_bytes, round).unwrap();
+///
+/// // with armor
+/// let mut encrypted = vec![];
+/// let mut encrypted = tlock_age::armor::ArmoredWriter::wrap_output(encrypted).unwrap();
+/// tlock::encrypt(&mut encrypted, &*src, &pk_bytes, round);
+/// encrypted.finish().unwrap();
 /// ```
 pub fn encrypt<W: Write, R: Read>(
     dst: W,
     mut src: R,
-    armor: bool,
     chain_hash: &[u8],
     public_key_bytes: &[u8],
     round: u64,
@@ -37,15 +46,9 @@ pub fn encrypt<W: Write, R: Read>(
     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
         .expect("we provided a recipient");
 
-    let output_format = if armor {
-        age::armor::Format::AsciiArmor
-    } else {
-        age::armor::Format::Binary
-    };
-    let dst = age::armor::ArmoredWriter::wrap_output(dst, output_format)?;
     let mut writer = encryptor.wrap_output(dst)?;
     copy(&mut src, &mut writer)?;
-    writer.finish().and_then(|armor| armor.finish()).unwrap();
+    writer.finish()?;
 
     Ok(())
 }
@@ -108,7 +111,9 @@ impl Header {
 /// ```
 pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header> {
     let identity = HeaderIdentity::new();
-    let decryptor = match age::Decryptor::new(age::armor::ArmoredReader::new(src)).unwrap() {
+    #[cfg(feature = "armor")]
+    let src = age::armor::ArmoredReader::new(src);
+    let decryptor = match age::Decryptor::new(src).unwrap() {
         age::Decryptor::Recipients(d) => d,
         _ => unreachable!(),
     };
@@ -160,7 +165,9 @@ pub fn decrypt<W: Write, R: Read>(
     signature: &[u8],
 ) -> anyhow::Result<()> {
     let identity = Identity::new(chain_hash, signature);
-    let decryptor = match age::Decryptor::new(age::armor::ArmoredReader::new(src)).unwrap() {
+    #[cfg(feature = "armor")]
+    let src = age::armor::ArmoredReader::new(src);
+    let decryptor = match age::Decryptor::new(src).unwrap() {
         age::Decryptor::Recipients(d) => d,
         _ => unreachable!(),
     };

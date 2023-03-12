@@ -60,8 +60,8 @@ pub fn encrypt<W: io::Write, R: io::Read>(
 /// ```rust
 /// // curl -sS https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493/public/1000 | jq -r '.signature'
 /// let signature = hex::decode("b09eacd45767c4d58306b98901ad0d6086e2663766f3a4ec71d00cf26f0f49eaf248abc7151c60cf419c4e8b37e80412").unwrap();
-/// // This message is the encryption of an empty 32 byte message, using fastnet public key, at round 1000
 ///
+/// // This message is the encryption of an empty 32 byte message, using fastnet public key, at round 1000
 /// let encrypted = hex::decode("e807916f7361ae6918f799b9e70af0c6e861ccbc5b40cb8a7bb4523983f3bd23c1f79b7ea7604e0cc634d1056f09bf11a5bb081bb44867a75da9165764210167faa91f001d80a7f51d82d69e6fdb3c066ccd11da9297e9986f8383dbda24061e219e38ccd3170fab92cc5b01f2a6f7743aa2b9f7b9097bb2276d0bf002da415f94d2afda8afd19e350ebb824e11378a6d5b856af1d0cc69a16a125905f0e932c84a2").unwrap();
 ///
 /// let decrypted = vec![];
