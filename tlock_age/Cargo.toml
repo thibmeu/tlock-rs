@@ -18,6 +18,9 @@ drand_core = "0.0.4"
 rand = "0.8.5"
 tokio = "1.26.0"
 
+[target.'cfg(wasm32)'.dev-dependencies]
+getrandom = { version = "0.2.8", features = ["js"] }
+
 [features]
 armor = ["age/armor"]
 

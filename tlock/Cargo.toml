@@ -5,17 +5,20 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-sha2 = "0.9"
-rand = "0.8.5"
-group = "0.12"
 bls12_381_plus = { version = "0.7.0", features = ["nightly"] }
+group = "0.12"
+itertools = "0.10.5"
+rand = "0.8.5"
 serde = { version = "1.0", features = ["derive"] }
+sha2 = "0.9"
+tracing = "0.1.37"
 unsigned-varint = { version = "0.7", features = [
     "futures",
     "asynchronous_codec",
 ] }
-tracing = "0.1.37"
-itertools = "0.10.5"
+
+[target.'cfg(wasm32)'.dependencies]
+getrandom = { version = "0.2.8", features = ["js"] }
 
 [dev-dependencies]
 criterion = "0.4.0"
