@@ -8,12 +8,12 @@ async fn main() {
 
     let msg = vec![8; 32];
     let mut encrypted = vec![];
-    tlock::encrypt(&mut encrypted, &*msg, &info.public_key(), 1000).unwrap();
+    tlock::encrypt(&mut encrypted, msg.as_slice(), &info.public_key(), 1000).unwrap();
 
     let beacon = client.get(1000).await.unwrap();
 
     let mut decrypted = vec![];
-    tlock::decrypt(&mut decrypted, &*encrypted, &beacon.signature()).unwrap();
+    tlock::decrypt(&mut decrypted, encrypted.as_slice(), &beacon.signature()).unwrap();
 
     assert_eq!(msg, decrypted);
     println!("Encryption and decryption were successful");

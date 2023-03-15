@@ -22,7 +22,7 @@ use tracing::info_span;
 /// let src = vec![0u8; 32];
 ///
 /// let mut encrypted = vec![];
-/// tlock::encrypt(&mut encrypted, &*src, &pk_bytes, round);
+/// tlock::encrypt(&mut encrypted, src.as_slice(), &pk_bytes, round);
 /// ```
 pub fn encrypt<W: io::Write, R: io::Read>(
     mut dst: W,
@@ -36,12 +36,6 @@ pub fn encrypt<W: io::Write, R: io::Read>(
 
     let ct = info_span!("ibe::encryption")
         .in_scope(|| time_lock(public_key_bytes, round_number, message));
-
-    {
-        let mut buffer = unsigned_varint::encode::u64_buffer();
-        dst.write_all(unsigned_varint::encode::u64(round_number, &mut buffer))
-            .unwrap();
-    }
 
     dst.write_all(&ct.u.to_compressed()).unwrap();
     dst.write_all(&ct.v).unwrap();
@@ -62,17 +56,16 @@ pub fn encrypt<W: io::Write, R: io::Read>(
 /// let signature = hex::decode("b09eacd45767c4d58306b98901ad0d6086e2663766f3a4ec71d00cf26f0f49eaf248abc7151c60cf419c4e8b37e80412").unwrap();
 ///
 /// // This message is the encryption of an empty 32 byte message, using fastnet public key, at round 1000
-/// let encrypted = hex::decode("e807916f7361ae6918f799b9e70af0c6e861ccbc5b40cb8a7bb4523983f3bd23c1f79b7ea7604e0cc634d1056f09bf11a5bb081bb44867a75da9165764210167faa91f001d80a7f51d82d69e6fdb3c066ccd11da9297e9986f8383dbda24061e219e38ccd3170fab92cc5b01f2a6f7743aa2b9f7b9097bb2276d0bf002da415f94d2afda8afd19e350ebb824e11378a6d5b856af1d0cc69a16a125905f0e932c84a2").unwrap();
+/// let encrypted = hex::decode("99505e26cc523eb6510d238459e85dfa19584843ee8f7368b53c79c0144db89b92f4f786dbe57d2b8bcab46abfbe3d690baf24f877d141b3a97925c50f924618c515e955e10d2fd6b13061c8da8ff81513e815c4237311d877fcf4537ed30327f53bd70abbea28609f6182be9123e3ec7ee130582f599110d389b9e87d8f15daf40b2896cc53e444b2ffd6c0bb98d62b6c6b2ca418028c4c578a9964801231eb").unwrap();
 ///
 /// let decrypted = vec![];
-/// tlock::decrypt(decrypted, &*encrypted, &signature).unwrap();
+/// tlock::decrypt(decrypted, encrypted.as_slice(), &signature).unwrap();
 /// ```
 pub fn decrypt<W: io::Write, R: io::Read>(
     mut dst: W,
     mut src: R,
     signature: &[u8],
 ) -> anyhow::Result<()> {
-    let _round = decrypt_round(&mut src);
     let c = {
         let u = if signature.len() == ibe::G1_SIZE {
             let mut u = [0u8; ibe::G2_SIZE];
@@ -112,9 +105,9 @@ pub fn decrypt<W: io::Write, R: io::Read>(
     dst.write_all(&pt).map_err(|e| anyhow!("error write {e}"))
 }
 
-fn decrypt_round<R: io::Read>(mut src: R) -> anyhow::Result<u64> {
-    unsigned_varint::io::read_u64(&mut src).map_err(|e| anyhow!("error reading {e}"))
-}
+// fn decrypt_round<R: io::Read>(mut src: R) -> anyhow::Result<u64> {
+//     unsigned_varint::io::read_u64(&mut src).map_err(|e| anyhow!("error reading {e}"))
+// }
 
 fn time_lock<M: AsRef<[u8]>>(
     public_key_bytes: &[u8],
