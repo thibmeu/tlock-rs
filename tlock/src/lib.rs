@@ -81,17 +81,15 @@ pub fn decrypt<W: io::Write, R: io::Read>(
         let mut v = [0u8; 16];
         src.read_exact(&mut v)
             .map_err(|e| anyhow!("error reading {e}"))?;
-        let mut pad_v = [0u8; 32];
-        pad_v[16..].copy_from_slice(&v);
+        let v = [[0u8; 16], v].concat().to_vec();
         let mut w = [0u8; 16];
         src.read_exact(&mut w)
             .map_err(|e| anyhow!("error reading {e}"))?;
-        let mut pad_w = [0u8; 32];
-        pad_w[16..].copy_from_slice(&w);
+        let w = [[0u8; 16], w].concat().to_vec();
         Ciphertext {
             u: u.as_slice().try_into()?,
-            v: pad_v.to_vec(),
-            w: pad_w.to_vec(),
+            v,
+            w,
         }
     };
 

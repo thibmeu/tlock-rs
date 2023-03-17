@@ -102,6 +102,7 @@ pub struct Ciphertext {
 }
 
 const BLOCK_SIZE: usize = 32;
+const FP_CHUNK_SIZE: usize = 48;
 pub const H2C_DST: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
 pub const G1_SIZE: usize = 48;
@@ -153,7 +154,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
         let r_gid = gid.mul(r);
         let hash = sha2::Sha256::new()
             .chain(b"IBE-H2") // dst
-            .chain(rev_chunks(&r_gid.to_bytes(), 48))
+            .chain(rev_chunks(&r_gid.to_bytes(), FP_CHUNK_SIZE))
             .finalize();
         let h_r_git = &hash.to_vec()[0..16];
 
@@ -184,7 +185,7 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
         let r_gid = private.pairing(&c.u).unwrap();
         let hash = sha2::Sha256::new()
             .chain(b"IBE-H2")
-            .chain(rev_chunks(&r_gid.to_bytes(), 48))
+            .chain(rev_chunks(&r_gid.to_bytes(), FP_CHUNK_SIZE))
             .finalize();
         let h_r_git = &hash.to_vec()[0..16];
         xor(h_r_git, &c.v[c.v.len() - 16..])
