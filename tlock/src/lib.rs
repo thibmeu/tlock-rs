@@ -8,18 +8,18 @@ use sha2::Digest;
 use std::io;
 use tracing::info_span;
 
-/// Encrypt 32 bytes using tlock encryption scheme.
+/// Encrypt 16 bytes using tlock encryption scheme.
 ///
 /// tlock relies on BLS, content is encrypted against BLS public key.
 /// Public key group is assessed based on the public key size.
 ///
-/// Example using an empty 32-byte message, fastnet public key, at round 1000
+/// Example using an empty 16-byte message, fastnet public key, at round 1000
 ///
 /// ```rust
 /// // curl -sS https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493/info | jq -r '.public_key'
 /// let pk_bytes = hex::decode("a0b862a7527fee3a731bcb59280ab6abd62d5c0b6ea03dc4ddf6612fdfc9d01f01c31542541771903475eb1ec6615f8d0df0b8b6dce385811d6dcf8cbefb8759e5e616a3dfd054c928940766d9a5b9db91e3b697e5d70a975181e007f87fca5e").unwrap();
 /// let round = 1000;
-/// let src = vec![0u8; 32];
+/// let src = vec![0u8; 16];
 ///
 /// let mut encrypted = vec![];
 /// tlock::encrypt(&mut encrypted, src.as_slice(), &pk_bytes, round);
@@ -30,7 +30,7 @@ pub fn encrypt<W: io::Write, R: io::Read>(
     public_key_bytes: &[u8],
     round_number: u64,
 ) -> anyhow::Result<()> {
-    let mut message = [0; 32];
+    let mut message = [0; 16];
     src.read(&mut message)
         .map_err(|e| anyhow!("error reading {e}"))?;
 
@@ -44,19 +44,19 @@ pub fn encrypt<W: io::Write, R: io::Read>(
     Ok(())
 }
 
-/// Decrypt 32 bytes using tlock encryption scheme.
+/// Decrypt 16 bytes using tlock encryption scheme.
 ///
 /// tlock relies on BLS, content private key is a BLS signature.
 /// Signature group is assessed based on the public key size.
 ///
-/// Example using an 32-byte message, fastnet public key, and round 1000
+/// Example using an 16-byte message, fastnet public key, and round 1000
 ///
 /// ```rust
 /// // curl -sS https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493/public/1000 | jq -r '.signature'
 /// let signature = hex::decode("b09eacd45767c4d58306b98901ad0d6086e2663766f3a4ec71d00cf26f0f49eaf248abc7151c60cf419c4e8b37e80412").unwrap();
 ///
-/// // This message is the encryption of an empty 32 byte message, using fastnet public key, at round 1000
-/// let encrypted = hex::decode("99505e26cc523eb6510d238459e85dfa19584843ee8f7368b53c79c0144db89b92f4f786dbe57d2b8bcab46abfbe3d690baf24f877d141b3a97925c50f924618c515e955e10d2fd6b13061c8da8ff81513e815c4237311d877fcf4537ed30327f53bd70abbea28609f6182be9123e3ec7ee130582f599110d389b9e87d8f15daf40b2896cc53e444b2ffd6c0bb98d62b6c6b2ca418028c4c578a9964801231eb").unwrap();
+/// // This message is the encryption of an empty 16 byte message, using fastnet public key, at round 1000
+/// let encrypted = hex::decode("9787b5ed1c3e36e84ce19064e975be835b81c0788d5aa2a49ab7edc98b2917f1d61ac21f196bdc693ed556194fb33da104ffafa3c036dbcfb55eb953aaf2d446871aad7a1266f531caac1d654247a2d8ee93b975a7a19f0286f44d3c646d76338f334f4450bddbb2db52daae55d9e20ec26503ea7855b165f713b4ea96e60376").unwrap();
 ///
 /// let decrypted = vec![];
 /// tlock::decrypt(decrypted, encrypted.as_slice(), &signature).unwrap();
@@ -78,17 +78,20 @@ pub fn decrypt<W: io::Write, R: io::Read>(
                 .map_err(|e| anyhow!("error reading {e}"))?;
             u.to_vec()
         };
-        let mut v = [0u8; 32];
+        let mut v = [0u8; 16];
         src.read_exact(&mut v)
             .map_err(|e| anyhow!("error reading {e}"))?;
-        let mut w = [0u8; 32];
+        let mut pad_v = [0u8; 32];
+        pad_v[16..].copy_from_slice(&v);
+        let mut w = [0u8; 16];
         src.read_exact(&mut w)
             .map_err(|e| anyhow!("error reading {e}"))?;
-
+        let mut pad_w = [0u8; 32];
+        pad_w[16..].copy_from_slice(&w);
         Ciphertext {
             u: u.as_slice().try_into()?,
-            v: v.to_vec(),
-            w: w.to_vec(),
+            v: pad_v.to_vec(),
+            w: pad_w.to_vec(),
         }
     };
 
@@ -104,10 +107,6 @@ pub fn decrypt<W: io::Write, R: io::Read>(
 
     dst.write_all(&pt).map_err(|e| anyhow!("error write {e}"))
 }
-
-// fn decrypt_round<R: io::Read>(mut src: R) -> anyhow::Result<u64> {
-//     unsigned_varint::io::read_u64(&mut src).map_err(|e| anyhow!("error reading {e}"))
-// }
 
 fn time_lock<M: AsRef<[u8]>>(
     public_key_bytes: &[u8],
@@ -136,7 +135,7 @@ mod tests {
     fn test_pk_g1_sig_g2() {
         let pk_bytes = hex::decode("8200fc249deb0148eb918d6e213980c5d01acd7fc251900d9260136da3b54836ce125172399ddc69c4e3e11429b62c11").unwrap();
 
-        let msg = vec![8; 32];
+        let msg = vec![8; 16];
         let ct = time_lock(&pk_bytes, 1000, msg.clone());
 
         let signature = hex::decode("a4721e6c3eafcd823f138cd29c6c82e8c5149101d0bb4bafddbac1c2d1fe3738895e4e21dd4b8b41bf007046440220910bb1cdb91f50a84a0d7f33ff2e8577aa62ac64b35a291a728a9db5ac91e06d1312b48a376138d77b4d6ad27c24221afe").unwrap();
@@ -152,7 +151,7 @@ mod tests {
 
         // at round 1000
         // https://drand.cloudflare.com/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493/public/1000
-        let msg = vec![8; 32];
+        let msg = vec![8; 16];
         let ct = time_lock(&pk_bytes, 1000, msg.clone());
 
         let signature = hex::decode("b09eacd45767c4d58306b98901ad0d6086e2663766f3a4ec71d00cf26f0f49eaf248abc7151c60cf419c4e8b37e80412").unwrap();

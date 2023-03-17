@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Result};
-use bls12_381_plus::{ExpandMsgXmd, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar};
+use bls12_381_plus::{
+    ExpandMsg, ExpandMsgXmd, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar,
+};
 use group::Curve;
 use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::ops::Mul;
+use sha2::{digest::BlockInput, Digest, Sha256};
+use std::{marker::PhantomData, ops::Mul};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum GAffine {
@@ -118,7 +120,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
     // otherwise can `Scalar::from_bytes(r).unwrap()` panic from subtle crate
     let (sigma, r) = loop {
         // 2. Derive random sigma
-        let sigma: [u8; BLOCK_SIZE] = (0..BLOCK_SIZE)
+        let sigma: [u8; 16] = (0..16)
             .map(|_| rng.sample(Uniform::new(0u8, 8u8)))
             .collect_vec()
             .try_into()
@@ -126,13 +128,16 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
 
         // 3. Derive r from sigma and msg
         let r = {
-            let mut hash = Sha256::new();
-            hash.update(b"h3");
-            hash.update(&sigma[..]);
-            hash.update(msg.as_ref());
-            let r = &hash.finalize().to_vec()[0..32].try_into().unwrap();
+            let hash = Sha256::new()
+                .chain(b"IBE-H3")
+                .chain(&sigma[..])
+                .chain(msg.as_ref())
+                .finalize();
+            let r = hash.as_slice();
 
-            Scalar::from_bytes(r)
+            let mut buf = [0u8; BLOCK_SIZE];
+            ExpandMsgDrand::<Sha256>::expand_message(r, &[], &mut buf);
+            Scalar::from_bytes(&buf)
         };
 
         if r.is_some().unwrap_u8() == 1u8 {
@@ -145,21 +150,23 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
 
     // 5. Compute V = sigma XOR H(rGid)
     let v = {
-        let mut hash = sha2::Sha256::new();
         let r_gid = gid.mul(r);
-        hash.update(b"h2"); // dst
-        hash.update(r_gid.to_bytes());
-        let h_r_git = &hash.finalize().to_vec()[0..BLOCK_SIZE];
+        let hash = sha2::Sha256::new()
+            .chain(b"IBE-H2") // dst
+            .chain(rev_chunks(&r_gid.to_bytes(), 48))
+            .finalize();
+        let h_r_git = &hash.to_vec()[0..16];
 
         xor(&sigma, h_r_git)
     };
 
     // 6. Compute W = M XOR H(sigma)
     let w = {
-        let mut hash = sha2::Sha256::new();
-        hash.update(b"h4");
-        hash.update(&sigma[..]);
-        let h_sigma = &hash.finalize().to_vec()[0..BLOCK_SIZE];
+        let hash = sha2::Sha256::new()
+            .chain(b"IBE-H4")
+            .chain(&sigma[..])
+            .finalize();
+        let h_sigma = &hash.to_vec()[0..16];
         xor(msg.as_ref(), h_sigma)
     };
 
@@ -174,31 +181,36 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
 
     // 1. Compute sigma = V XOR H2(e(rP,private))
     let sigma = {
-        let mut hash = sha2::Sha256::new();
         let r_gid = private.pairing(&c.u).unwrap();
-        hash.update(b"h2");
-        hash.update(r_gid.to_bytes());
-        let h_r_git = &hash.finalize().to_vec()[0..BLOCK_SIZE];
-        xor(h_r_git, &c.v)
+        let hash = sha2::Sha256::new()
+            .chain(b"IBE-H2")
+            .chain(rev_chunks(&r_gid.to_bytes(), 48))
+            .finalize();
+        let h_r_git = &hash.to_vec()[0..16];
+        xor(h_r_git, &c.v[c.v.len() - 16..])
     };
 
     // 2. Compute Msg = W XOR H4(sigma)
     let msg = {
-        let mut hash = sha2::Sha256::new();
-        hash.update(b"h4");
-        hash.update(&sigma);
-        let h_sigma = &hash.finalize().to_vec()[0..BLOCK_SIZE];
-        xor(h_sigma, &c.w)
+        let hash = sha2::Sha256::new()
+            .chain(b"IBE-H4")
+            .chain(&sigma)
+            .finalize();
+        let h_sigma = &hash.to_vec()[0..16];
+        xor(h_sigma, &c.w[c.w.len() - 16..])
     };
 
     // 3. Check U = G^r
     let r_g = {
-        let mut hash = sha2::Sha256::new();
-        hash.update(b"h3");
-        hash.update(&sigma[..]);
-        hash.update(&msg);
-        let r = &hash.finalize().to_vec()[0..BLOCK_SIZE];
-        let r = Scalar::from_bytes(r.try_into().unwrap()).unwrap();
+        let hash = sha2::Sha256::new()
+            .chain(b"IBE-H3")
+            .chain(&sigma)
+            .chain(&msg)
+            .finalize();
+        let r = hash.as_slice();
+        let mut buf = [0u8; BLOCK_SIZE];
+        ExpandMsgDrand::<Sha256>::expand_message(r, &[], &mut buf);
+        let r = Scalar::from_bytes(&buf).unwrap();
         c.u.generator().mul(r)
     };
     assert_eq!(c.u, r_g);
@@ -207,7 +219,60 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
 }
 
 fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
+    if a.len() != b.len() {
+        panic!("array length should be the same");
+    }
     a.iter().zip(b.iter()).map(|(a, b)| a ^ b).collect()
+}
+
+/// Placeholder type for implementing expand_message_drand based on a hash function
+#[derive(Debug)]
+pub struct ExpandMsgDrand<HashT> {
+    phantom: PhantomData<HashT>,
+}
+
+/// ExpandMsgXmd implements expand_message_drand for the ExpandMsg trait
+impl<HashT> ExpandMsg for ExpandMsgDrand<HashT>
+where
+    HashT: Digest + BlockInput,
+{
+    fn expand_message(msg: &[u8], _dst: &[u8], buf: &mut [u8]) {
+        // drand "hash"
+        const BITS_TO_MASK_FOR_BLS12381: usize = 1;
+        for i in 1..u16::MAX {
+            // We hash iteratively: H(i || H("IBE-H3" || sigma || msg)) until we get a
+            // value that is suitable as a scalar.
+            let mut h = HashT::new()
+                .chain(i.to_le_bytes())
+                .chain(msg)
+                .finalize()
+                .to_vec();
+            *h.first_mut().unwrap() = h.first().unwrap() >> BITS_TO_MASK_FOR_BLS12381;
+            // let rev: Vec<u8> = data.lock().unwrap().iter().copied().rev().collect();
+            // test if we can build a valid scalar out of n
+            // this is a hash method to be compatible with the existing implementation
+            let rev: Vec<u8> = h.iter().copied().rev().collect();
+            let ret = rev.as_slice().try_into().unwrap();
+            if Scalar::from_bytes(&ret).is_some().unwrap_u8() == 1u8 {
+                buf.copy_from_slice(&ret);
+                return;
+            }
+        }
+    }
+}
+
+// Reverse a u8 array, chunks at a time
+// Example
+// ```rust
+// let a = vec![1, 2, 3, 4];
+// assert_eq!(tlock::ibe::rev_chunks(&a, 2), vec![3, 4, 1, 2]);
+// ```
+fn rev_chunks(a: &[u8], chunk_size: usize) -> Vec<u8> {
+    a.chunks(chunk_size)
+        .into_iter()
+        .rev()
+        .collect_vec()
+        .concat()
 }
 
 #[cfg(test)]
