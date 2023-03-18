@@ -6,7 +6,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("lock unlock with TLE", |b| {
         b.iter(|| {
-            let mut msg = vec![0u8; 32];
+            let mut msg = vec![0u8; 16];
             msg.fill_with(rand::random);
 
             let mut encrypted = vec![];
