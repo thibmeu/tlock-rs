@@ -47,7 +47,7 @@ impl age::Identity for Identity {
         }
 
         let dst = InMemoryWriter::new();
-        let decryption = tlock::decrypt(dst.to_owned(), &stanza.body[..], &self.signature);
+        let decryption = tlock::decrypt(dst.to_owned(), stanza.body.as_slice(), &self.signature);
         match decryption {
             Ok(_) => {
                 let mut dst = dst.memory();
@@ -164,7 +164,7 @@ impl age::Recipient for Recipient {
     /// age that is used for encrypting/decrypting data. Inside of Wrap we encrypt
     /// the DEK using time lock encryption.
     fn wrap_file_key(&self, file_key: &FileKey) -> Result<Vec<Stanza>, age::EncryptError> {
-        let src = &file_key.expose_secret()[..];
+        let src = file_key.expose_secret().as_slice();
         let dst = InMemoryWriter::new();
         let _ = tlock::encrypt(dst.to_owned(), src, &self.public_key_bytes, self.round);
 
@@ -214,7 +214,7 @@ mod tests {
         };
 
         let decrypted = {
-            let decryptor = match age::Decryptor::new(&encrypted[..]).unwrap() {
+            let decryptor = match age::Decryptor::new(encrypted.as_slice()).unwrap() {
                 age::Decryptor::Recipients(d) => d,
                 _ => unreachable!(),
             };

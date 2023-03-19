@@ -15,7 +15,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let mut encrypted = vec![];
             tlock_age::encrypt(
                 black_box(&mut encrypted),
-                black_box(&msg[..]),
+                black_box(msg.as_slice()),
                 black_box(&chain_hash),
                 black_box(&pk_bytes),
                 black_box(round),
@@ -24,7 +24,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let mut decrypted = vec![];
             tlock_age::decrypt(
                 black_box(&mut decrypted),
-                black_box(&encrypted[..]),
+                black_box(encrypted.as_slice()),
                 black_box(&chain_hash),
                 black_box(&signature),
             )

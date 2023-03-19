@@ -12,7 +12,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let mut encrypted = vec![];
             tlock::encrypt(
                 black_box(&mut encrypted),
-                black_box(&msg[..]),
+                black_box(msg.as_slice()),
                 black_box(&pk_bytes),
                 black_box(1000),
             )
@@ -20,7 +20,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let mut decrypted = vec![];
             tlock::decrypt(
                 black_box(&mut decrypted),
-                black_box(&encrypted[..]),
+                black_box(encrypted.as_slice()),
                 black_box(&signature),
             )
             .unwrap();

@@ -131,7 +131,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
         let r = {
             let hash = Sha256::new()
                 .chain(b"IBE-H3")
-                .chain(&sigma[..])
+                .chain(sigma.as_slice())
                 .chain(msg.as_ref())
                 .finalize();
             let r = hash.as_slice();
@@ -165,7 +165,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
     let w = {
         let hash = sha2::Sha256::new()
             .chain(b"IBE-H4")
-            .chain(&sigma[..])
+            .chain(sigma.as_slice())
             .finalize();
         let h_sigma = &hash.to_vec()[0..16];
         xor(msg.as_ref(), h_sigma)
