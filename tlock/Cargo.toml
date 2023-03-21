@@ -1,7 +1,15 @@
 [package]
 name = "tlock"
+description = "Rust encryption library for practical time-lock encryption."
 version = "0.1.0"
+authors = ["Thibault Meunier <crates@thibault.uk>"]
 edition = "2021"
+readme = "./README.md"
+homepage = "https://github.com/thibmeu/tlock-rs"
+repository = "https://github.com/thibmeu/tlock-rs"
+keywords = ["tlock", "cryptography", "encryption"]
+categories = ["cryptography"]
+license = "MIT"
 
 [dependencies]
 anyhow = "1"

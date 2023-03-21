@@ -1,7 +1,15 @@
 [package]
 name = "tlock_age"
+description = "Rust encryption library for hybrid time-lock encryption."
 version = "0.1.0"
+authors = ["Thibault Meunier <crates@thibault.uk>"]
 edition = "2021"
+readme = "../README.md"
+homepage = "https://github.com/thibmeu/tlock-rs"
+repository = "https://github.com/thibmeu/tlock-rs"
+keywords = ["tlock", "cryptography", "encryption"]
+categories = ["cryptography"]
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
