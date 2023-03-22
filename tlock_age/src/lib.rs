@@ -1,3 +1,22 @@
+//! # tlock_age
+//!
+//! tlock_age is a library to encrypt and decrypt messages using tlock encryption scheme and age encryption.
+//! The reference interroperable Go implementation is available at [drand/tlock](https://github.com/drand/tlock).
+//!
+//! tlock relies on BLS, content is encrypted against BLS public key. Public key group is assessed based on the public key size.
+//! age implementation is [str4d/rage](https://github.com/str4d/rage). When encrypting file, it generates an additional stanza `grease-the-join`, which other tlock implementation have to ignore.
+//!
+//! Both encryption and decryption are performed wihout network access. tlock_age expects the caller interact with the drand network of their choice, through whichever method they wish. To that end, a dedicated method `decrypt_header` is provided.
+//! It's important to note that `decrypt_header` consumes bytes from the reader, and reader requires these headers to be passed as well. The caller needs to duplicates these inputs if needed.
+//!
+//! ## Features
+//!
+//! - `armor`: Enable armor output. This is required if you want to output bytes are ASCII printable.
+//!
+//! ## Example
+//!
+//! For a working example, refer to [examples/encrypt_decrypt.rs](../examples/encrypt_decrypt.rs).
+
 #[cfg(feature = "armor")]
 pub mod armor;
 mod tle_age;

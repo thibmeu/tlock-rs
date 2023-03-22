@@ -1,3 +1,16 @@
+//! # tlock
+//!
+//! tlock is a library to encrypt and decrypt 16-byte binaries using [tlock](https://eprint.iacr.org/2023/189) scheme. It provides `encrypt` and `decrypt` methods consuming Threshold BLS signatures provided by [drand](https://drand.love/docs/specification/) beacons.
+//!
+//! The reference interroperable Go implementation is available at [drand/tlock](https://github.com/drand/tlock).
+//! The key difference with these implementation is that drand client is not backed into the library. This allows for more flexibility in how data is provided. One could retrieve drand beacon through the method they wish, using it offline if they want to. This also decouples the use of drand network from the use of tlock.
+//!
+//! Public key group is assessed based on the public key size. Signatures follow the same logic.
+//!
+//! ## Example
+//!
+//! For a working example, refer to [examples/example1.rs](../examples/example1.rs).
+
 mod ibe;
 
 use crate::ibe::Ciphertext;
