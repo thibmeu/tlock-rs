@@ -1,39 +1,100 @@
 use anyhow::{anyhow, Result};
-use bls12_381_plus::{
-    ExpandMsg, ExpandMsgXmd, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar,
+use ark_bls12_381::{
+    g1, g2, Bls12_381, Fr as ScalarField, G1Affine, G1Projective, G2Affine, G2Projective,
 };
-use group::Curve;
+use ark_ec::{
+    hashing::{curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve},
+    models::short_weierstrass,
+    pairing::{Pairing, PairingOutput},
+    AffineRepr, CurveGroup,
+};
+use ark_ff::{field_hashers::DefaultFieldHasher, PrimeField};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use itertools::Itertools;
 use rand::distributions::Uniform;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sha2::{digest::BlockInput, Digest, Sha256};
+use serde_with::DeserializeAs;
+use sha2::{digest::Update, Digest, Sha256};
 use std::{marker::PhantomData, ops::Mul};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GAffine {
     G1Affine(G1Affine),
     G2Affine(G2Affine),
 }
 
+impl Serialize for GAffine {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut bytes = vec![];
+        match self {
+            Self::G1Affine(g) => g
+                .serialize_with_mode(&mut bytes, ark_serialize::Compress::Yes)
+                .map_err(serde::ser::Error::custom)?,
+            Self::G2Affine(g) => g
+                .serialize_with_mode(&mut bytes, ark_serialize::Compress::Yes)
+                .map_err(serde::ser::Error::custom)?,
+        }
+
+        serializer.serialize_bytes(&bytes)
+    }
+}
+
+impl<'de> Deserialize<'de> for GAffine {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<GAffine, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = serde_with::Bytes::deserialize_as(deserializer)?;
+        let reader = bytes.as_slice();
+        let affine = match reader.len() {
+            G1_SIZE => Self::G1Affine(
+                G1Affine::deserialize_compressed(bytes.as_slice())
+                    .map_err(serde::de::Error::custom)?,
+            ),
+            G2_SIZE => Self::G2Affine(
+                G2Affine::deserialize_compressed(bytes.as_slice())
+                    .map_err(serde::de::Error::custom)?,
+            ),
+            _ => return Err(serde::de::Error::custom("Invalid len Should be 48 of 96")),
+        };
+        Ok(affine)
+    }
+}
+
 impl GAffine {
-    pub fn projective_pairing(&self, id: &[u8]) -> Gt {
+    pub fn projective_pairing(&self, id: &[u8]) -> PairingOutput<ark_bls12_381::Bls12_381> {
         match self {
             GAffine::G1Affine(g) => {
-                let qid = G2Projective::hash::<ExpandMsgXmd<Sha256>>(id, H2C_DST).to_affine();
-                bls12_381_plus::pairing(g, &qid)
+                let mapper = MapToCurveBasedHasher::<
+                    short_weierstrass::Projective<g2::Config>,
+                    DefaultFieldHasher<sha2::Sha256, 128>,
+                    WBMap<g2::Config>,
+                >::new(H2C_DST)
+                .unwrap();
+                let qid = G2Projective::from(mapper.hash(id).unwrap()).into_affine();
+                Bls12_381::pairing(g, qid)
             }
             GAffine::G2Affine(g) => {
-                let qid = G1Projective::hash::<ExpandMsgXmd<Sha256>>(id, H2C_DST).to_affine();
-                bls12_381_plus::pairing(&qid, g)
+                let mapper = MapToCurveBasedHasher::<
+                    short_weierstrass::Projective<g1::Config>,
+                    DefaultFieldHasher<sha2::Sha256, 128>,
+                    WBMap<g1::Config>,
+                >::new(H2C_DST)
+                .unwrap();
+                let qid = G1Projective::from(mapper.hash(id).unwrap()).into_affine();
+                Bls12_381::pairing(qid, g)
             }
         }
     }
 
-    pub fn pairing(&self, other: &GAffine) -> Result<Gt> {
+    pub fn pairing(&self, other: &GAffine) -> Result<PairingOutput<ark_bls12_381::Bls12_381>> {
         match (self, other) {
-            (GAffine::G1Affine(s), GAffine::G2Affine(o)) => Ok(bls12_381_plus::pairing(s, o)),
-            (GAffine::G2Affine(s), GAffine::G1Affine(o)) => Ok(bls12_381_plus::pairing(o, s)),
+            (GAffine::G1Affine(s), GAffine::G2Affine(o)) => Ok(Bls12_381::pairing(s, o)),
+            (GAffine::G2Affine(s), GAffine::G1Affine(o)) => Ok(Bls12_381::pairing(o, s)),
             _ => Err(anyhow!(
                 "pairing requires affines to be on different curves"
             )),
@@ -42,35 +103,30 @@ impl GAffine {
 
     pub fn generator(&self) -> Self {
         match self {
-            GAffine::G1Affine(_) => G1Affine::generator().into(),
-            GAffine::G2Affine(_) => G2Affine::generator().into(),
+            GAffine::G1Affine(_) => GAffine::G1Affine(G1Affine::generator()),
+            GAffine::G2Affine(_) => GAffine::G2Affine(G2Affine::generator()),
         }
     }
 
-    pub fn mul(&self, s: Scalar) -> Self {
+    pub fn mul(&self, s: ScalarField) -> Self {
         match self {
-            GAffine::G1Affine(g) => g.mul(s).to_affine().into(),
-            GAffine::G2Affine(g) => g.mul(s).to_affine().into(),
+            GAffine::G1Affine(g) => GAffine::G1Affine(g.mul(s).into_affine()),
+            GAffine::G2Affine(g) => GAffine::G2Affine(g.mul(s).into_affine()),
         }
     }
 
-    pub fn to_compressed(&self) -> Vec<u8> {
+    pub fn to_compressed(&self) -> Result<Vec<u8>, anyhow::Error> {
+        let mut compressed = vec![];
         match self {
-            GAffine::G1Affine(g) => g.to_compressed().to_vec(),
-            GAffine::G2Affine(g) => g.to_compressed().to_vec(),
+            GAffine::G1Affine(g) => {
+                g.serialize_with_mode(&mut compressed, ark_serialize::Compress::Yes)
+            }
+            GAffine::G2Affine(g) => {
+                g.serialize_with_mode(&mut compressed, ark_serialize::Compress::Yes)
+            }
         }
-    }
-}
-
-impl From<G1Affine> for GAffine {
-    fn from(g1: G1Affine) -> Self {
-        GAffine::G1Affine(g1)
-    }
-}
-
-impl From<G2Affine> for GAffine {
-    fn from(g2: G2Affine) -> Self {
-        GAffine::G2Affine(g2)
+        .map_err(|_| anyhow!("serialization failed"))?;
+        Ok(compressed)
     }
 }
 
@@ -79,15 +135,13 @@ impl TryFrom<&[u8]> for GAffine {
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() == G1_SIZE {
-            let bytes = bytes
-                .try_into()
+            let g = G1Affine::deserialize_compressed(bytes)
                 .map_err(|_| anyhow!("invalid public key size"))?;
-            Ok(G1Affine::from_compressed(bytes).unwrap().into())
+            Ok(GAffine::G1Affine(g))
         } else if bytes.len() == G2_SIZE {
-            let bytes = bytes
-                .try_into()
+            let g = G2Affine::deserialize_compressed(bytes)
                 .map_err(|_| anyhow!("invalid public key size"))?;
-            Ok(G2Affine::from_compressed(bytes).unwrap().into())
+            Ok(GAffine::G2Affine(g))
         } else {
             Err(anyhow!("invalid size for public key"))
         }
@@ -102,13 +156,16 @@ pub struct Ciphertext {
 }
 
 const BLOCK_SIZE: usize = 32;
-const FP_CHUNK_SIZE: usize = 48;
 pub const H2C_DST: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
 pub const G1_SIZE: usize = 48;
 pub const G2_SIZE: usize = 96;
 
-pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -> Ciphertext {
+pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
+    master: GAffine,
+    id: I,
+    msg: M,
+) -> Result<Ciphertext, anyhow::Error> {
     assert!(
         msg.as_ref().len() <= BLOCK_SIZE,
         "plaintext too long for the block size"
@@ -117,33 +174,26 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
     let mut rng = rand::thread_rng();
     // 1. Compute Gid = e(master,Q_id)
     let gid = master.projective_pairing(id.as_ref());
-    // dirty fix: loop to sample randomness that won't mess up constant time operation.
-    // otherwise can `Scalar::from_bytes(r).unwrap()` panic from subtle crate
-    let (sigma, r) = loop {
-        // 2. Derive random sigma
-        let sigma: [u8; 16] = (0..16)
-            .map(|_| rng.sample(Uniform::new(0u8, 8u8)))
-            .collect_vec()
-            .try_into()
-            .unwrap();
 
-        // 3. Derive r from sigma and msg
-        let r = {
-            let hash = Sha256::new()
-                .chain(b"IBE-H3")
-                .chain(sigma.as_slice())
-                .chain(msg.as_ref())
-                .finalize();
-            let r = hash.as_slice();
+    // 2. Derive random sigma
+    let sigma: [u8; 16] = (0..16)
+        .map(|_| rng.sample(Uniform::new(0u8, 8u8)))
+        .collect_vec()
+        .try_into()
+        .map_err(|_| anyhow!("sigma does not fit in 16 bytes"))?;
 
-            let mut buf = [0u8; BLOCK_SIZE];
-            ExpandMsgDrand::<Sha256>::expand_message(r, &[], &mut buf);
-            Scalar::from_bytes(&buf)
-        };
+    // 3. Derive r from sigma and msg
+    let r: ScalarField = {
+        let hash = Sha256::new()
+            .chain(b"IBE-H3")
+            .chain(sigma.as_slice())
+            .chain(msg.as_ref())
+            .finalize();
+        let r = hash.as_slice();
 
-        if r.is_some().unwrap_u8() == 1u8 {
-            break (sigma, r.unwrap());
-        }
+        let mut buf = [0u8; BLOCK_SIZE];
+        ExpandMsgDrand::<Sha256>::expand_message(r, &[], &mut buf);
+        ScalarField::from_le_bytes_mod_order(&buf)
     };
 
     // 4. Compute U = G^r
@@ -151,11 +201,18 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
 
     // 5. Compute V = sigma XOR H(rGid)
     let v = {
-        let r_gid = gid.mul(r);
+        let r_gid_out = gid.mul(r);
+        let mut r_gid = vec![];
+        r_gid_out
+            .serialize_with_mode(&mut r_gid, ark_serialize::Compress::Yes)
+            .map_err(|_| anyhow!("seriazliation failed"))?;
+        let r_gid = &r_gid.into_iter().rev().collect_vec();
+
         let hash = sha2::Sha256::new()
             .chain(b"IBE-H2") // dst
-            .chain(rev_chunks(&r_gid.to_bytes(), FP_CHUNK_SIZE))
+            .chain(r_gid)
             .finalize();
+
         let h_r_git = &hash.to_vec()[0..16];
 
         xor(&sigma, h_r_git)
@@ -171,10 +228,10 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(master: GAffine, id: I, msg: M) -
         xor(msg.as_ref(), h_sigma)
     };
 
-    Ciphertext { u, v, w }
+    Ok(Ciphertext { u, v, w })
 }
 
-pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
+pub fn decrypt(private: GAffine, c: &Ciphertext) -> Result<Vec<u8>, anyhow::Error> {
     assert!(
         c.w.len() <= BLOCK_SIZE,
         "ciphertext too long for the block size"
@@ -182,11 +239,14 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
 
     // 1. Compute sigma = V XOR H2(e(rP,private))
     let sigma = {
-        let r_gid = private.pairing(&c.u).unwrap();
-        let hash = sha2::Sha256::new()
-            .chain(b"IBE-H2")
-            .chain(rev_chunks(&r_gid.to_bytes(), FP_CHUNK_SIZE))
-            .finalize();
+        let r_gid_out = private.pairing(&c.u).unwrap();
+        let mut r_gid = vec![];
+        r_gid_out
+            .serialize_with_mode(&mut r_gid, ark_serialize::Compress::Yes)
+            .map_err(|_| anyhow!("seriazliation failed"))?;
+        let r_gid = &r_gid.into_iter().rev().collect_vec();
+
+        let hash = sha2::Sha256::new().chain(b"IBE-H2").chain(r_gid).finalize();
         let h_r_git = &hash.to_vec()[0..16];
         xor(h_r_git, &c.v[c.v.len() - 16..])
     };
@@ -211,12 +271,12 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Vec<u8> {
         let r = hash.as_slice();
         let mut buf = [0u8; BLOCK_SIZE];
         ExpandMsgDrand::<Sha256>::expand_message(r, &[], &mut buf);
-        let r = Scalar::from_bytes(&buf).unwrap();
+        let r = ScalarField::from_le_bytes_mod_order(&buf);
         c.u.generator().mul(r)
     };
     assert_eq!(c.u, r_g);
 
-    msg
+    Ok(msg)
 }
 
 fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
@@ -233,9 +293,9 @@ pub struct ExpandMsgDrand<HashT> {
 }
 
 /// ExpandMsgXmd implements expand_message_drand for the ExpandMsg trait
-impl<HashT> ExpandMsg for ExpandMsgDrand<HashT>
+impl<HashT> ExpandMsgDrand<HashT>
 where
-    HashT: Digest + BlockInput,
+    HashT: Digest + Update,
 {
     fn expand_message(msg: &[u8], _dst: &[u8], buf: &mut [u8]) {
         // drand "hash"
@@ -253,27 +313,15 @@ where
             // test if we can build a valid scalar out of n
             // this is a hash method to be compatible with the existing implementation
             let rev: Vec<u8> = h.iter().copied().rev().collect();
-            let ret = rev.as_slice().try_into().unwrap();
-            if Scalar::from_bytes(&ret).is_some().unwrap_u8() == 1u8 {
-                buf.copy_from_slice(&ret);
+            if ScalarField::from_le_bytes_mod_order(&rev)
+                .serialized_size(ark_serialize::Compress::Yes)
+                > 0
+            {
+                buf.copy_from_slice(&rev);
                 return;
             }
         }
     }
-}
-
-// Reverse a u8 array, chunks at a time
-// Example
-// ```rust
-// let a = vec![1, 2, 3, 4];
-// assert_eq!(tlock::ibe::rev_chunks(&a, 2), vec![3, 4, 1, 2]);
-// ```
-fn rev_chunks(a: &[u8], chunk_size: usize) -> Vec<u8> {
-    a.chunks(chunk_size)
-        .into_iter()
-        .rev()
-        .collect_vec()
-        .concat()
 }
 
 #[cfg(test)]

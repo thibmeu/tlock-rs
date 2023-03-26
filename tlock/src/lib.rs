@@ -48,11 +48,11 @@ pub fn encrypt<W: io::Write, R: io::Read>(
         .map_err(|e| anyhow!("error reading {e}"))?;
 
     let ct = info_span!("ibe::encryption")
-        .in_scope(|| time_lock(public_key_bytes, round_number, message));
+        .in_scope(|| time_lock(public_key_bytes, round_number, message))?;
 
-    dst.write_all(&ct.u.to_compressed()).unwrap();
-    dst.write_all(&ct.v).unwrap();
-    dst.write_all(&ct.w).unwrap();
+    dst.write_all(&ct.u.to_compressed()?)?;
+    dst.write_all(&ct.v)?;
+    dst.write_all(&ct.w)?;
 
     Ok(())
 }
@@ -106,7 +106,7 @@ pub fn decrypt<W: io::Write, R: io::Read>(
         }
     };
 
-    let mut pt = time_unlock(signature, &c);
+    let mut pt = time_unlock(signature, &c)?;
 
     //note(thibault): I'm not sure why this condition was choosen, but this does not work as expected
     // it stems to time_unlock always decrypting to 32 bytes
@@ -123,8 +123,8 @@ fn time_lock<M: AsRef<[u8]>>(
     public_key_bytes: &[u8],
     round_number: u64,
     message: M,
-) -> ibe::Ciphertext {
-    let public_key = GAffine::try_from(public_key_bytes).unwrap();
+) -> Result<ibe::Ciphertext, anyhow::Error> {
+    let public_key = GAffine::try_from(public_key_bytes)?;
     let id = {
         let mut hash = sha2::Sha256::new();
         hash.update(round_number.to_be_bytes());
@@ -134,8 +134,8 @@ fn time_lock<M: AsRef<[u8]>>(
     ibe::encrypt(public_key, id, message)
 }
 
-fn time_unlock(signature: &[u8], c: &Ciphertext) -> Vec<u8> {
-    ibe::decrypt(signature.try_into().unwrap(), c)
+fn time_unlock(signature: &[u8], c: &Ciphertext) -> Result<Vec<u8>, anyhow::Error> {
+    ibe::decrypt(signature.try_into()?, c)
 }
 
 #[cfg(test)]
@@ -147,11 +147,11 @@ mod tests {
         let pk_bytes = hex::decode("8200fc249deb0148eb918d6e213980c5d01acd7fc251900d9260136da3b54836ce125172399ddc69c4e3e11429b62c11").unwrap();
 
         let msg = vec![8; 16];
-        let ct = time_lock(&pk_bytes, 1000, msg.clone());
+        let ct = time_lock(&pk_bytes, 1000, msg.clone()).unwrap();
 
         let signature = hex::decode("a4721e6c3eafcd823f138cd29c6c82e8c5149101d0bb4bafddbac1c2d1fe3738895e4e21dd4b8b41bf007046440220910bb1cdb91f50a84a0d7f33ff2e8577aa62ac64b35a291a728a9db5ac91e06d1312b48a376138d77b4d6ad27c24221afe").unwrap();
 
-        let pt = time_unlock(&signature, &ct);
+        let pt = time_unlock(&signature, &ct).unwrap();
         assert_eq!(pt, msg)
     }
 
@@ -163,11 +163,11 @@ mod tests {
         // at round 1000
         // https://drand.cloudflare.com/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493/public/1000
         let msg = vec![8; 16];
-        let ct = time_lock(&pk_bytes, 1000, msg.clone());
+        let ct = time_lock(&pk_bytes, 1000, msg.clone()).unwrap();
 
         let signature = hex::decode("b09eacd45767c4d58306b98901ad0d6086e2663766f3a4ec71d00cf26f0f49eaf248abc7151c60cf419c4e8b37e80412").unwrap();
 
-        let pt = time_unlock(&signature, &ct);
+        let pt = time_unlock(&signature, &ct).unwrap();
         assert_eq!(pt, msg)
     }
 }

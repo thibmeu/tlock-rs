@@ -14,7 +14,6 @@ The reference interroperable Go implementation is available at [drand/tlock](htt
 ## Tables of Content
 
 * [Features](#features)
-* [What's next](#whats-next)
 * [Installation](#installation)
 * [Usage](#usage)
 * [Security Considerations](#security-considerations)
@@ -29,10 +28,6 @@ The reference interroperable Go implementation is available at [drand/tlock](htt
 * Encryption with public key on G1 and G2
 * Interroperability with Go and JS implementation
 * wasm32 compatible library
-
-## What's next
-
-* Faster BLS12-381 library
 
 ## Installation
 
