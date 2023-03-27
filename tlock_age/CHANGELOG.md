@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.2] - 2023-03-27
+
+### Changed
+
+- Update BLS12-381 library to improve performance
+
 ## [0.0.1] - 2023-03-22
 
 ### Added
