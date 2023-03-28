@@ -21,13 +21,16 @@ hex = "0.4.3"
 tlock = { path = "../tlock", version = "0.0.2" }
 
 [dev-dependencies]
-criterion = "0.4.0"
+criterion = { version = "0.4.0", features = ["html_reports"] }
 drand_core = "0.0.4"
 rand = "0.8.5"
 tokio = "1.26.0"
 
 [target.'cfg(wasm32)'.dev-dependencies]
 getrandom = { version = "0.2.8", features = ["js"] }
+
+[target.'cfg(unix)'.dev-dependencies]
+pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
 
 [features]
 armor = ["age/armor"]
