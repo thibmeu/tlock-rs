@@ -5,6 +5,7 @@ use std::{
 
 use age::secrecy::{ExposeSecret, Zeroize};
 use age_core::format::{FileKey, Stanza};
+use anyhow::anyhow;
 
 pub const STANZA_TAG: &str = "tlock";
 
@@ -37,26 +38,28 @@ impl age::Identity for Identity {
         }
         let args: [String; 2] = [stanza.args[0].clone(), stanza.args[1].clone()];
 
-        let _round = match args[0].parse::<u64>() {
-            Ok(round) => round,
-            Err(_err) => return Some(Err(age::DecryptError::InvalidHeader)),
-        };
+        let _round = args[0]
+            .parse::<u64>()
+            .map_err(|_| age::DecryptError::InvalidHeader)
+            .ok()?;
 
-        if self.hash != hex::decode(&args[1]).unwrap() {
+        if self.hash
+            != hex::decode(&args[1])
+                .map_err(|e| anyhow!("hash decryption failed: {}", e))
+                .ok()?
+        {
             return Some(Err(age::DecryptError::InvalidHeader));
         }
 
         let dst = InMemoryWriter::new();
         let decryption = tlock::decrypt(dst.to_owned(), stanza.body.as_slice(), &self.signature);
-        match decryption {
-            Ok(_) => {
-                let mut dst = dst.memory();
-                dst.resize(16, 0);
-                let file_key: [u8; 16] = dst[..].try_into().unwrap();
-                Some(Ok(file_key.into()))
-            }
-            Err(_err) => Some(Err(age::DecryptError::DecryptionFailed)),
-        }
+        decryption
+            .map_err(|_| age::DecryptError::DecryptionFailed)
+            .ok()?;
+        let mut dst = dst.memory();
+        dst.resize(16, 0);
+        let file_key: [u8; 16] = dst[..].try_into().ok()?;
+        Some(Ok(file_key.into()))
     }
 }
 
@@ -97,14 +100,13 @@ impl age::Identity for HeaderIdentity {
         }
         let args: [String; 2] = [stanza.args[0].clone(), stanza.args[1].clone()];
 
-        let round = match args[0].parse::<u64>() {
-            Ok(round) => round,
-            Err(_err) => return Some(Err(age::DecryptError::InvalidHeader)),
-        };
-        let hash = match hex::decode(&args[1]) {
-            Ok(hash) => hash,
-            Err(_) => return Some(Err(age::DecryptError::InvalidHeader)),
-        };
+        let round = args[0]
+            .parse::<u64>()
+            .map_err(|_| age::DecryptError::InvalidHeader)
+            .ok()?;
+        let hash = hex::decode(&args[1])
+            .map_err(|_| age::DecryptError::InvalidHeader)
+            .ok()?;
 
         *self.round.lock().unwrap() = Some(round);
         *self.hash.lock().unwrap() = Some(hash);

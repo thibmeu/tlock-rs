@@ -66,7 +66,7 @@ impl<'de> Deserialize<'de> for GAffine {
 }
 
 impl GAffine {
-    pub fn projective_pairing(&self, id: &[u8]) -> PairingOutput<ark_bls12_381::Bls12_381> {
+    pub fn projective_pairing(&self, id: &[u8]) -> Result<PairingOutput<ark_bls12_381::Bls12_381>> {
         match self {
             GAffine::G1Affine(g) => {
                 let mapper = MapToCurveBasedHasher::<
@@ -74,9 +74,14 @@ impl GAffine {
                     DefaultFieldHasher<sha2::Sha256, 128>,
                     WBMap<g2::Config>,
                 >::new(H2C_DST)
-                .unwrap();
-                let qid = G2Projective::from(mapper.hash(id).unwrap()).into_affine();
-                Bls12_381::pairing(g, qid)
+                .map_err(|_| anyhow!("cannot initialise mapper for sha2 to BLS12-381 G2"))?;
+                let qid = G2Projective::from(
+                    mapper
+                        .hash(id)
+                        .map_err(|_| anyhow!("hash cannot be mapped to G2"))?,
+                )
+                .into_affine();
+                Ok(Bls12_381::pairing(g, qid))
             }
             GAffine::G2Affine(g) => {
                 let mapper = MapToCurveBasedHasher::<
@@ -84,9 +89,14 @@ impl GAffine {
                     DefaultFieldHasher<sha2::Sha256, 128>,
                     WBMap<g1::Config>,
                 >::new(H2C_DST)
-                .unwrap();
-                let qid = G1Projective::from(mapper.hash(id).unwrap()).into_affine();
-                Bls12_381::pairing(qid, g)
+                .map_err(|_| anyhow!("cannot initialise mapper for sha2 to BLS12-381 G1"))?;
+                let qid = G1Projective::from(
+                    mapper
+                        .hash(id)
+                        .map_err(|_| anyhow!("hash cannot be mapped to G1"))?,
+                )
+                .into_affine();
+                Ok(Bls12_381::pairing(qid, g))
             }
         }
     }
@@ -173,7 +183,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
 
     let mut rng = rand::thread_rng();
     // 1. Compute Gid = e(master,Q_id)
-    let gid = master.projective_pairing(id.as_ref());
+    let gid = master.projective_pairing(id.as_ref())?;
 
     // 2. Derive random sigma
     let sigma: [u8; 16] = (0..16)
@@ -239,7 +249,7 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Result<Vec<u8>, anyhow::Erro
 
     // 1. Compute sigma = V XOR H2(e(rP,private))
     let sigma = {
-        let r_gid_out = private.pairing(&c.u).unwrap();
+        let r_gid_out = private.pairing(&c.u)?;
         let mut r_gid = vec![];
         r_gid_out
             .serialize_with_mode(&mut r_gid, ark_serialize::Compress::Yes)
@@ -309,7 +319,6 @@ where
                 .finalize()
                 .to_vec();
             *h.first_mut().unwrap() = h.first().unwrap() >> BITS_TO_MASK_FOR_BLS12381;
-            // let rev: Vec<u8> = data.lock().unwrap().iter().copied().rev().collect();
             // test if we can build a valid scalar out of n
             // this is a hash method to be compatible with the existing implementation
             let rev: Vec<u8> = h.iter().copied().rev().collect();
