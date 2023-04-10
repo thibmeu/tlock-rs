@@ -185,16 +185,17 @@ mod tests {
         iter,
     };
 
-    use drand_core::{chain, http_chain_client};
+    use drand_core::HttpClient;
 
     use crate::{Identity, Recipient};
 
     #[tokio::test]
     async fn it_works() {
-        let chain = chain::Chain::new("https://pl-us.testnet.drand.sh/7672797f548f3f4748ac4bf3352fc6c6b6468c9ad40ad456a397545c6e2df5bf");
-        let info = chain.info().await.unwrap();
-
-        let client = http_chain_client::HttpChainClient::new(chain, None);
+        let client: HttpClient =
+            "https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493"
+                .try_into()
+                .unwrap();
+        let info = client.chain_info().await.unwrap();
 
         let round = 100;
         let beacon = client.get(round).await.unwrap();

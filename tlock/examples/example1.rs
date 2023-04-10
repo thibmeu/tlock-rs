@@ -1,12 +1,14 @@
-use drand_core::{chain, http_chain_client};
+use drand_core::HttpClient;
 
 #[tokio::main]
 async fn main() {
-    let chain = chain::Chain::new("https://pl-us.testnet.drand.sh/7672797f548f3f4748ac4bf3352fc6c6b6468c9ad40ad456a397545c6e2df5bf");
-    let client = http_chain_client::HttpChainClient::new(chain, None);
-    let info = client.chain().info().await.unwrap();
+    let client: HttpClient =
+        "https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493"
+            .try_into()
+            .unwrap();
+    let info = client.chain_info().await.unwrap();
 
-    let msg = vec![8; 32];
+    let msg = vec![8; 16];
     let mut encrypted = vec![];
     tlock::encrypt(&mut encrypted, msg.as_slice(), &info.public_key(), 1000).unwrap();
 
