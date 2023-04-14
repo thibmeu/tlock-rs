@@ -21,13 +21,27 @@
 pub mod armor;
 mod tle_age;
 
-use anyhow::anyhow;
-
 use std::{
-    io::{copy, Read, Write},
+    io::{self, copy, Read, Write},
     iter,
 };
+use thiserror::Error;
 use tle_age::{HeaderIdentity, Identity, Recipient};
+
+#[derive(Error, Debug)]
+pub enum TLockAgeError {
+    #[error(transparent)]
+    Decrypt(#[from] age::DecryptError),
+    #[error("cannot parse header. partial information: round {round:?}, chain {chain:?}")]
+    Header {
+        round: Option<String>,
+        chain: Option<String>,
+    },
+    #[error("recipient cannot be a passphrase")]
+    InvalidRecipient,
+    #[error(transparent)]
+    IO(#[from] io::Error),
+}
 
 /// Encrypt using tlock encryption scheme and age encryption.
 ///
@@ -126,22 +140,31 @@ impl Header {
 ///
 /// let header = tlock_age::decrypt_header(encrypted).unwrap();
 /// ```
-pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header> {
+pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header, TLockAgeError> {
     let identity = HeaderIdentity::new();
     #[cfg(feature = "armor")]
     let src = age::armor::ArmoredReader::new(src);
     let decryptor = match age::Decryptor::new(src) {
         Ok(age::Decryptor::Recipients(d)) => d,
-        Ok(age::Decryptor::Passphrase(_)) => {
-            return Err(anyhow!("recipient cannot be a passphrase"))
-        }
-        Err(e) => return Err(anyhow!(e)),
+        Ok(age::Decryptor::Passphrase(_)) => return Err(TLockAgeError::InvalidRecipient),
+        Err(e) => return Err(TLockAgeError::Decrypt(e)),
     };
 
     let _ = decryptor.decrypt(iter::once(&identity as &dyn age::Identity));
     match (identity.round(), identity.hash()) {
         (Some(round), Some(hash)) => Ok(Header::new(round, &hash)),
-        _ => Err(anyhow!("Cannot decrypt round")),
+        (Some(round), None) => Err(TLockAgeError::Header {
+            round: Some(round.to_string()),
+            chain: None,
+        }),
+        (None, Some(hash)) => Err(TLockAgeError::Header {
+            round: None,
+            chain: Some(hex::encode(hash)),
+        }),
+        _ => Err(TLockAgeError::Header {
+            round: None,
+            chain: None,
+        }),
     }
 }
 
@@ -181,21 +204,19 @@ pub fn decrypt<W: Write, R: Read>(
     src: R,
     chain_hash: &[u8],
     signature: &[u8],
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(), TLockAgeError> {
     let identity = Identity::new(chain_hash, signature);
     #[cfg(feature = "armor")]
     let src = age::armor::ArmoredReader::new(src);
     let decryptor = match age::Decryptor::new(src) {
         Ok(age::Decryptor::Recipients(d)) => d,
-        Ok(age::Decryptor::Passphrase(_)) => {
-            return Err(anyhow!("recipient cannot be a passphrase"))
-        }
-        Err(e) => return Err(anyhow!(e)),
+        Ok(age::Decryptor::Passphrase(_)) => return Err(TLockAgeError::InvalidRecipient),
+        Err(e) => return Err(TLockAgeError::Decrypt(e)),
     };
 
     let mut reader = match decryptor.decrypt(iter::once(&identity as &dyn age::Identity)) {
         Ok(reader) => reader,
-        Err(e) => return Err(anyhow!(e)),
+        Err(e) => return Err(TLockAgeError::Decrypt(e)),
     };
     copy(&mut reader, &mut dst)?;
 

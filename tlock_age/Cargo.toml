@@ -18,6 +18,7 @@ age = { version = "0.9.0" }
 age-core = "0.9.0"
 anyhow = "1.0.69"
 hex = "0.4.3"
+thiserror = "1.0.40"
 tlock = { path = "../tlock", version = "0.0.2" }
 
 [dev-dependencies]

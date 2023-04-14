@@ -5,7 +5,6 @@ use std::{
 
 use age::secrecy::{ExposeSecret, Zeroize};
 use age_core::format::{FileKey, Stanza};
-use anyhow::anyhow;
 
 pub const STANZA_TAG: &str = "tlock";
 
@@ -43,11 +42,7 @@ impl age::Identity for Identity {
             .map_err(|_| age::DecryptError::InvalidHeader)
             .ok()?;
 
-        if self.hash
-            != hex::decode(&args[1])
-                .map_err(|e| anyhow!("hash decryption failed: {}", e))
-                .ok()?
-        {
+        if self.hash != hex::decode(&args[1]).ok()? {
             return Some(Err(age::DecryptError::InvalidHeader));
         }
 

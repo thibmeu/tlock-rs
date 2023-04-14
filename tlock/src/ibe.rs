@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use ark_bls12_381::{
     g1, g2, Bls12_381, Fr as ScalarField, G1Affine, G1Projective, G2Affine, G2Projective,
 };
@@ -17,6 +16,25 @@ use serde::{Deserialize, Serialize};
 use serde_with::DeserializeAs;
 use sha2::{digest::Update, Digest, Sha256};
 use std::{marker::PhantomData, ops::Mul};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum IBEError {
+    #[error("hash cannot be mapped to {0}")]
+    HashToCurve(String),
+    #[error("cannot initialise mapper for {hash} to BLS12-381 {field}")]
+    MapperInitialisation { hash: String, field: String },
+    #[error("sigma does not fit in 16 bytes")]
+    MessageSize,
+    #[error("pairing requires affines to be on different curves")]
+    Pairing,
+    #[error("invalid public key size")]
+    PublicKeySize,
+    #[error("serialization failed")]
+    Serialisation,
+    #[error("unknown data store error")]
+    Unknown,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GAffine {
@@ -66,7 +84,10 @@ impl<'de> Deserialize<'de> for GAffine {
 }
 
 impl GAffine {
-    pub fn projective_pairing(&self, id: &[u8]) -> Result<PairingOutput<ark_bls12_381::Bls12_381>> {
+    pub fn projective_pairing(
+        &self,
+        id: &[u8],
+    ) -> anyhow::Result<PairingOutput<ark_bls12_381::Bls12_381>> {
         match self {
             GAffine::G1Affine(g) => {
                 let mapper = MapToCurveBasedHasher::<
@@ -74,11 +95,14 @@ impl GAffine {
                     DefaultFieldHasher<sha2::Sha256, 128>,
                     WBMap<g2::Config>,
                 >::new(H2C_DST)
-                .map_err(|_| anyhow!("cannot initialise mapper for sha2 to BLS12-381 G2"))?;
+                .map_err(|_| IBEError::MapperInitialisation {
+                    hash: "sha2".to_owned(),
+                    field: "G2".to_owned(),
+                })?;
                 let qid = G2Projective::from(
                     mapper
                         .hash(id)
-                        .map_err(|_| anyhow!("hash cannot be mapped to G2"))?,
+                        .map_err(|_| IBEError::HashToCurve("G2".to_owned()))?,
                 )
                 .into_affine();
                 Ok(Bls12_381::pairing(g, qid))
@@ -89,11 +113,14 @@ impl GAffine {
                     DefaultFieldHasher<sha2::Sha256, 128>,
                     WBMap<g1::Config>,
                 >::new(H2C_DST)
-                .map_err(|_| anyhow!("cannot initialise mapper for sha2 to BLS12-381 G1"))?;
+                .map_err(|_| IBEError::MapperInitialisation {
+                    hash: "sha2".to_owned(),
+                    field: "G1".to_owned(),
+                })?;
                 let qid = G1Projective::from(
                     mapper
                         .hash(id)
-                        .map_err(|_| anyhow!("hash cannot be mapped to G1"))?,
+                        .map_err(|_| IBEError::HashToCurve("G1".to_owned()))?,
                 )
                 .into_affine();
                 Ok(Bls12_381::pairing(qid, g))
@@ -101,13 +128,14 @@ impl GAffine {
         }
     }
 
-    pub fn pairing(&self, other: &GAffine) -> Result<PairingOutput<ark_bls12_381::Bls12_381>> {
+    pub fn pairing(
+        &self,
+        other: &GAffine,
+    ) -> anyhow::Result<PairingOutput<ark_bls12_381::Bls12_381>, IBEError> {
         match (self, other) {
             (GAffine::G1Affine(s), GAffine::G2Affine(o)) => Ok(Bls12_381::pairing(s, o)),
             (GAffine::G2Affine(s), GAffine::G1Affine(o)) => Ok(Bls12_381::pairing(o, s)),
-            _ => Err(anyhow!(
-                "pairing requires affines to be on different curves"
-            )),
+            _ => Err(IBEError::Pairing),
         }
     }
 
@@ -125,7 +153,7 @@ impl GAffine {
         }
     }
 
-    pub fn to_compressed(&self) -> Result<Vec<u8>, anyhow::Error> {
+    pub fn to_compressed(&self) -> anyhow::Result<Vec<u8>, IBEError> {
         let mut compressed = vec![];
         match self {
             GAffine::G1Affine(g) => {
@@ -135,25 +163,23 @@ impl GAffine {
                 g.serialize_with_mode(&mut compressed, ark_serialize::Compress::Yes)
             }
         }
-        .map_err(|_| anyhow!("serialization failed"))?;
+        .map_err(|_| IBEError::Serialisation)?;
         Ok(compressed)
     }
 }
 
 impl TryFrom<&[u8]> for GAffine {
-    type Error = anyhow::Error;
+    type Error = IBEError;
 
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &[u8]) -> anyhow::Result<Self, Self::Error> {
         if bytes.len() == G1_SIZE {
-            let g = G1Affine::deserialize_compressed(bytes)
-                .map_err(|_| anyhow!("invalid public key size"))?;
+            let g = G1Affine::deserialize_compressed(bytes).map_err(|_| IBEError::PublicKeySize)?;
             Ok(GAffine::G1Affine(g))
         } else if bytes.len() == G2_SIZE {
-            let g = G2Affine::deserialize_compressed(bytes)
-                .map_err(|_| anyhow!("invalid public key size"))?;
+            let g = G2Affine::deserialize_compressed(bytes).map_err(|_| IBEError::PublicKeySize)?;
             Ok(GAffine::G2Affine(g))
         } else {
-            Err(anyhow!("invalid size for public key"))
+            Err(IBEError::PublicKeySize)
         }
     }
 }
@@ -175,7 +201,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
     master: GAffine,
     id: I,
     msg: M,
-) -> Result<Ciphertext, anyhow::Error> {
+) -> anyhow::Result<Ciphertext, anyhow::Error> {
     assert!(
         msg.as_ref().len() <= BLOCK_SIZE,
         "plaintext too long for the block size"
@@ -190,7 +216,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
         .map(|_| rng.sample(Uniform::new(0u8, 8u8)))
         .collect_vec()
         .try_into()
-        .map_err(|_| anyhow!("sigma does not fit in 16 bytes"))?;
+        .map_err(|_| IBEError::MessageSize)?;
 
     // 3. Derive r from sigma and msg
     let r: ScalarField = {
@@ -215,7 +241,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
         let mut r_gid = vec![];
         r_gid_out
             .serialize_with_mode(&mut r_gid, ark_serialize::Compress::Yes)
-            .map_err(|_| anyhow!("seriazliation failed"))?;
+            .map_err(|_| IBEError::Serialisation)?;
         let r_gid = &r_gid.into_iter().rev().collect_vec();
 
         let hash = sha2::Sha256::new()
@@ -241,7 +267,7 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
     Ok(Ciphertext { u, v, w })
 }
 
-pub fn decrypt(private: GAffine, c: &Ciphertext) -> Result<Vec<u8>, anyhow::Error> {
+pub fn decrypt(private: GAffine, c: &Ciphertext) -> anyhow::Result<Vec<u8>, IBEError> {
     assert!(
         c.w.len() <= BLOCK_SIZE,
         "ciphertext too long for the block size"
@@ -253,7 +279,7 @@ pub fn decrypt(private: GAffine, c: &Ciphertext) -> Result<Vec<u8>, anyhow::Erro
         let mut r_gid = vec![];
         r_gid_out
             .serialize_with_mode(&mut r_gid, ark_serialize::Compress::Yes)
-            .map_err(|_| anyhow!("seriazliation failed"))?;
+            .map_err(|_| IBEError::Serialisation)?;
         let r_gid = &r_gid.into_iter().rev().collect_vec();
 
         let hash = sha2::Sha256::new().chain(b"IBE-H2").chain(r_gid).finalize();

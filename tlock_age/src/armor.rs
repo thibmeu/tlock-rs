@@ -1,5 +1,6 @@
-use anyhow::anyhow;
 use std::io::{Result, Write};
+
+use crate::TLockAgeError;
 
 /// Writer that applies the age ASCII armor format.
 pub struct ArmoredWriter<W: Write> {
@@ -10,7 +11,7 @@ impl<W: Write> ArmoredWriter<W> {
     /// Wraps the given output in an ArmoredWriter.
     pub fn wrap_output(w: W) -> anyhow::Result<Self> {
         let inner = age::armor::ArmoredWriter::wrap_output(w, age::armor::Format::AsciiArmor)
-            .map_err(|e| anyhow!("error wrapping output {e}"))?;
+            .map_err(TLockAgeError::IO)?;
         Ok(Self { inner })
     }
 

@@ -14,12 +14,20 @@
 mod ibe;
 
 use crate::ibe::Ciphertext;
-use anyhow::anyhow;
 
 use ibe::GAffine;
 use sha2::Digest;
 use std::io;
+use thiserror::Error;
 use tracing::info_span;
+
+#[derive(Error, Debug)]
+pub enum TLockError {
+    #[error(transparent)]
+    IBE(#[from] crate::ibe::IBEError),
+    #[error(transparent)]
+    IOError(#[from] io::Error),
+}
 
 /// Encrypt 16 bytes using tlock encryption scheme.
 ///
@@ -44,8 +52,7 @@ pub fn encrypt<W: io::Write, R: io::Read>(
     round_number: u64,
 ) -> anyhow::Result<()> {
     let mut message = [0; 16];
-    src.read(&mut message)
-        .map_err(|e| anyhow!("error reading {e}"))?;
+    src.read(&mut message).map_err(TLockError::IOError)?;
 
     let ct = info_span!("ibe::encryption")
         .in_scope(|| time_lock(public_key_bytes, round_number, message))?;
@@ -78,26 +85,22 @@ pub fn decrypt<W: io::Write, R: io::Read>(
     mut dst: W,
     mut src: R,
     signature: &[u8],
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(), TLockError> {
     let c = {
         let u = if signature.len() == ibe::G1_SIZE {
             let mut u = [0u8; ibe::G2_SIZE];
-            src.read_exact(&mut u)
-                .map_err(|e| anyhow!("error reading {e}"))?;
+            src.read_exact(&mut u).map_err(TLockError::IOError)?;
             u.to_vec()
         } else {
             let mut u = [0u8; ibe::G1_SIZE];
-            src.read_exact(&mut u)
-                .map_err(|e| anyhow!("error reading {e}"))?;
+            src.read_exact(&mut u).map_err(TLockError::IOError)?;
             u.to_vec()
         };
         let mut v = [0u8; 16];
-        src.read_exact(&mut v)
-            .map_err(|e| anyhow!("error reading {e}"))?;
+        src.read_exact(&mut v).map_err(TLockError::IOError)?;
         let v = [[0u8; 16], v].concat().to_vec();
         let mut w = [0u8; 16];
-        src.read_exact(&mut w)
-            .map_err(|e| anyhow!("error reading {e}"))?;
+        src.read_exact(&mut w).map_err(TLockError::IOError)?;
         let w = [[0u8; 16], w].concat().to_vec();
         Ciphertext {
             u: u.as_slice().try_into()?,
@@ -116,7 +119,7 @@ pub fn decrypt<W: io::Write, R: io::Read>(
         pt.truncate(i + 1);
     }
 
-    dst.write_all(&pt).map_err(|e| anyhow!("error write {e}"))
+    dst.write_all(&pt).map_err(TLockError::IOError)
 }
 
 fn time_lock<M: AsRef<[u8]>>(
@@ -134,8 +137,8 @@ fn time_lock<M: AsRef<[u8]>>(
     ibe::encrypt(public_key, id, message)
 }
 
-fn time_unlock(signature: &[u8], c: &Ciphertext) -> Result<Vec<u8>, anyhow::Error> {
-    ibe::decrypt(signature.try_into()?, c)
+fn time_unlock(signature: &[u8], c: &Ciphertext) -> Result<Vec<u8>, TLockError> {
+    ibe::decrypt(signature.try_into()?, c).map_err(TLockError::IBE)
 }
 
 #[cfg(test)]
