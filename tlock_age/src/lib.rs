@@ -32,6 +32,8 @@ use tle_age::{HeaderIdentity, Identity, Recipient};
 pub enum TLockAgeError {
     #[error(transparent)]
     Decrypt(#[from] age::DecryptError),
+    #[error(transparent)]
+    Encrypt(#[from] age::EncryptError),
     #[error("cannot parse header. partial information: round {round:?}, chain {chain:?}")]
     Header {
         round: Option<String>,
@@ -74,7 +76,7 @@ pub fn encrypt<W: Write, R: Read>(
     chain_hash: &[u8],
     public_key_bytes: &[u8],
     round: u64,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<(), TLockAgeError> {
     let recipient = Recipient::new(chain_hash, public_key_bytes, round);
     let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
         .expect("we provided a recipient");
