@@ -11,7 +11,8 @@ keywords = ["tlock", "cryptography", "encryption"]
 categories = ["cryptography"]
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 age = { version = "0.9.0" }
@@ -20,6 +21,7 @@ anyhow = "1.0.69"
 hex = "0.4.3"
 thiserror = "1.0.40"
 tlock = { path = "../tlock", version = "0.0.2" }
+wasm-bindgen = { version = "0.2.87", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }
@@ -35,6 +37,7 @@ pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
 
 [features]
 armor = ["age/armor"]
+js = ["armor", "wasm-bindgen"]
 
 [[bench]]
 name = "encrypt_decrypt"
