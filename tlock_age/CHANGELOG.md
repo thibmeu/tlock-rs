@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Update age dependency to 0.9
 - Update errors from anyhow to library errors
 - Update examples to use drand_core v0.0.7
 - Update benchmark with distinct lock/unlock measurements
