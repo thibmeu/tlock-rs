@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.3] - 2023-07-23
+
+### Fixed
+
+- Fix all panic with error handling
+
+### Changed
+
+- Update errors from anyhow to library errors
+- Update examples to use drand_core v0.0.7
+- Update benchmark with distinct lock/unlock measurements
+
 ## [0.0.2] - 2023-03-27
 
 ### Changed
