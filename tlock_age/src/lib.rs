@@ -19,14 +19,17 @@
 
 #[cfg(feature = "armor")]
 pub mod armor;
-mod tle_age;
+#[cfg(not(feature = "internal"))]
+mod internal;
+#[cfg(feature = "internal")]
+pub mod internal;
 
+use internal::{HeaderIdentity, Identity, Recipient};
 use std::{
     io::{self, copy, Read, Write},
     iter,
 };
 use thiserror::Error;
-use tle_age::{HeaderIdentity, Identity, Recipient};
 
 #[derive(Error, Debug)]
 pub enum TLockAgeError {
@@ -95,7 +98,7 @@ pub struct Header {
 }
 
 impl Header {
-    fn new(round: u64, hash: &[u8]) -> Self {
+    pub fn new(round: u64, hash: &[u8]) -> Self {
         Self {
             round,
             hash: hash.to_vec(),

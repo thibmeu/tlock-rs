@@ -23,9 +23,8 @@ tlock = { path = "../tlock", version = "0.0.3" }
 
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }
-drand_core = "0.0.7"
+drand_core = "0.0.9"
 rand = "0.8.5"
-tokio = { version = "1.26.0", features = ["full"] }
 
 [target.'cfg(wasm32)'.dev-dependencies]
 getrandom = { version = "0.2.8", features = ["js"] }
@@ -35,6 +34,7 @@ pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
 
 [features]
 armor = ["age/armor"]
+internal = []
 
 [[bench]]
 name = "encrypt_decrypt"
