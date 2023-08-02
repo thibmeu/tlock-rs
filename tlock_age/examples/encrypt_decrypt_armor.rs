@@ -1,7 +1,6 @@
 use drand_core::HttpClient;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let msg = b"Hello world! I'm encrypting a message using timelock encryption.".to_vec();
 
     // Use a drand client to retrieve beacon information
@@ -9,7 +8,7 @@ async fn main() {
         "https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493"
             .try_into()
             .unwrap();
-    let info = client.chain_info().await.unwrap();
+    let info = client.chain_info().unwrap();
     let round = 1000;
 
     // Encryption with armoring, making encrypted message ASCII printable
@@ -26,7 +25,7 @@ async fn main() {
 
     // Decrypting the message. It requires the round signature, here retrieved from the beacon above.
     let mut decrypted = vec![];
-    let signature = client.get(round).await.unwrap().signature();
+    let signature = client.get(round).unwrap().signature();
 
     tlock_age::decrypt(
         &mut decrypted,

@@ -61,6 +61,12 @@ For the simple explanation, you can use [Handwaving Cryptography](./assets/handw
 
 For a more detailed one, you should take time to read [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189) by Nicolas Gailly, Kelsey Melissaris, and Yolan Romailler.
 
+### How can I use it from the command line
+
+You need a client. Clients using tlock-rs are
+* [dee](https://github.com/thibmeu/drand-rs)
+* [age-plugin-tlock](https://github.com/thibmeu/tlock-rs/age-plugin-tlock)
+
 ## License
 
 This project is under the MIT license.

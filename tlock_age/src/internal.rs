@@ -82,6 +82,12 @@ impl HeaderIdentity {
     }
 }
 
+impl Default for HeaderIdentity {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl age::Identity for HeaderIdentity {
     // Unwrap is called by the age Decrypt API and is provided the DEK that was time
     // lock encrypted by the Wrap function via the Stanza. Inside of Unwrap we extract
@@ -184,16 +190,16 @@ mod tests {
 
     use crate::{Identity, Recipient};
 
-    #[tokio::test]
-    async fn it_works() {
+    #[test]
+    fn it_works() {
         let client: HttpClient =
             "https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493"
                 .try_into()
                 .unwrap();
-        let info = client.chain_info().await.unwrap();
+        let info = client.chain_info().unwrap();
 
         let round = 100;
-        let beacon = client.get(round).await.unwrap();
+        let beacon = client.get(round).unwrap();
         let id = Identity::new(&info.hash(), &beacon.signature());
         let recipient = Recipient::new(&info.hash(), &info.public_key(), round);
 
