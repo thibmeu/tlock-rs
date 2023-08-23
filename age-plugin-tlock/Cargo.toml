@@ -21,4 +21,4 @@ clap-verbosity-flag = "2.0.1"
 drand_core = "0.0.11"
 hex = "0.4.3"
 thiserror = "1.0.44"
-tlock_age = { version = "0.0.3", path = "../tlock_age", features = ["internal"] }
+tlock_age = { version = "0.0.4", path = "../tlock_age", features = ["internal"] }

@@ -1,7 +1,7 @@
 [package]
 name = "tlock_age"
 description = "Rust encryption library for hybrid time-lock encryption."
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Thibault Meunier <crates@thibault.uk>"]
 edition = "2021"
 readme = "../README.md"
@@ -11,15 +11,13 @@ keywords = ["tlock", "cryptography", "encryption"]
 categories = ["cryptography"]
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 age = "0.9"
 age-core = "0.9"
 anyhow = "1.0.69"
 hex = "0.4.3"
 thiserror = "1.0.40"
-tlock = { path = "../tlock", version = "0.0.3" }
+tlock = { path = "../tlock", version = "0.0.4" }
 
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }
@@ -33,8 +31,10 @@ getrandom = { version = "0.2.8", features = ["js"] }
 pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
 
 [features]
+default = ["rfc9380"]
 armor = ["age/armor"]
 internal = []
+rfc9380 = ["tlock/rfc9380"]
 
 [[bench]]
 name = "encrypt_decrypt"
