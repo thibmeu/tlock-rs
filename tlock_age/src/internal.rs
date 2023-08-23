@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn it_works() {
         let client: HttpClient =
-            "https://api.drand.sh/dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493"
+            "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971"
                 .try_into()
                 .unwrap();
         let info = client.chain_info().unwrap();

@@ -36,6 +36,10 @@ hex = "0.4"
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
 
+[features]
+default = ["rfc9380"]
+rfc9380 = []
+
 [[bench]]
 name = "encrypt_decrypt"
 harness = false

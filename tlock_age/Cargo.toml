@@ -23,7 +23,7 @@ tlock = { path = "../tlock", version = "0.0.3" }
 
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }
-drand_core = "0.0.9"
+drand_core = "0.0.13"
 rand = "0.8.5"
 
 [target.'cfg(wasm32)'.dev-dependencies]

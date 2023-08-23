@@ -62,6 +62,10 @@ For the simple explanation, you can use [Handwaving Cryptography](../assets/hand
 
 For a more detailed one, you should take time to read [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189) by Nicolas Gailly, Kelsey Melissaris, and Yolan Romailler.
 
+### RFC 9380 Hashing to Elliptic Curve
+
+[RFC 9380](https://www.rfc-editor.org/rfc/rfc9380) standardises a lot of interactions with elliptic curves. tlock did not use it first, and has been upgraded to support it. The feature `rfc9380` is enabled by default starting 0.0.4. This is not a backward compatible change.
+
 ## License
 
 This project is under the MIT license.

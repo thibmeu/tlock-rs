@@ -94,7 +94,7 @@ impl GAffine {
                     short_weierstrass::Projective<g2::Config>,
                     DefaultFieldHasher<sha2::Sha256, 128>,
                     WBMap<g2::Config>,
-                >::new(H2C_DST)
+                >::new(G2_DOMAIN)
                 .map_err(|_| IBEError::MapperInitialisation {
                     hash: "sha2".to_owned(),
                     field: "G2".to_owned(),
@@ -112,7 +112,7 @@ impl GAffine {
                     short_weierstrass::Projective<g1::Config>,
                     DefaultFieldHasher<sha2::Sha256, 128>,
                     WBMap<g1::Config>,
-                >::new(H2C_DST)
+                >::new(G1_DOMAIN)
                 .map_err(|_| IBEError::MapperInitialisation {
                     hash: "sha2".to_owned(),
                     field: "G1".to_owned(),
@@ -192,7 +192,11 @@ pub struct Ciphertext {
 }
 
 const BLOCK_SIZE: usize = 32;
-pub const H2C_DST: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
+#[cfg(feature = "rfc9380")]
+pub const G1_DOMAIN: &[u8] = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_";
+#[cfg(not(feature = "rfc9380"))]
+pub const G1_DOMAIN: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
+pub const G2_DOMAIN: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
 pub const G1_SIZE: usize = 48;
 pub const G2_SIZE: usize = 96;
