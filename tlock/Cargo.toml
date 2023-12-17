@@ -12,26 +12,26 @@ categories = ["cryptography"]
 license = "MIT"
 
 [dependencies]
-anyhow = "1"
+anyhow = { workspace = true }
 ark-bls12-381 = "0.4.0"
 ark-ec = "0.4.2"
 ark-ff = "0.4.2"
 ark-serialize = "0.4.2"
 itertools = "0.10.5"
-rand = { version = "0.8.5", default-features = false, features = ["getrandom"]}
+rand = { workspace = true, default-features = false, features = ["getrandom"]}
 serde = { version = "1.0", features = ["derive"] }
-serde_with = "2.3.1"
-sha2 = "0.10.6"
-thiserror = "1.0.40"
-tracing = "0.1.37"
+serde_with = "2.3.3"
+sha2 = "0.10.8"
+thiserror = { workspace = true }
+tracing = "0.1.40"
 
 [target.'cfg(wasm32)'.dependencies]
-getrandom = { version = "0.2.8", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
-criterion = { version = "0.4.0", features = ["html_reports"] }
-drand_core = "0.0.9"
-hex = "0.4"
+criterion = { workspace = true, features = ["html_reports"] }
+drand_core = { workspace = true }
+hex = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11", features = ["criterion", "flamegraph"] }

@@ -12,20 +12,20 @@ categories = ["cryptography"]
 license = "MIT"
 
 [dependencies]
-age = "0.9"
-age-core = "0.9"
-anyhow = "1.0.69"
-hex = "0.4.3"
-thiserror = "1.0.40"
+age = { workspace = true }
+age-core = { workspace = true }
+anyhow = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
 tlock = { path = "../tlock", version = "0.0.4" }
 
 [dev-dependencies]
-criterion = { version = "0.4.0", features = ["html_reports"] }
-drand_core = "0.0.13"
-rand = "0.8.5"
+criterion = { workspace = true, features = ["html_reports"] }
+drand_core = { workspace = true }
+rand = { workspace = true, default-features = true }
 
 [target.'cfg(wasm32)'.dev-dependencies]
-getrandom = { version = "0.2.8", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11", features = ["criterion", "flamegraph"] }

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Update dependencies
+
+## [0.0.4] - 2023-08-23
+
 ### Added
 
 - Feature rfc9380 enabled by default
