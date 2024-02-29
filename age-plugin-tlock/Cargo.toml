@@ -16,8 +16,8 @@ age = { workspace = true }
 age-core = { workspace = true }
 age-plugin = "0.4.0"
 bincode = "2.0.0-rc.3"
-clap = { version = "4.4.11", features = ["derive"] }
-clap-verbosity-flag = "2.1.1"
+clap = { version = "4.5.1", features = ["derive"] }
+clap-verbosity-flag = "2.2.0"
 drand_core = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
