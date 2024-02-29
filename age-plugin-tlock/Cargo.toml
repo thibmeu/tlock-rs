@@ -1,7 +1,7 @@
 [package]
 name = "age-plugin-tlock"
 description = "tlock plugin for age clients."
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Thibault Meunier <crates@thibault.uk>"]
 edition = "2021"
 readme = "./README.md"
@@ -21,4 +21,4 @@ clap-verbosity-flag = "2.2.0"
 drand_core = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
-tlock_age = { version = "0.0.4", path = "../tlock_age", features = ["internal"] }
+tlock_age = { version = "0.0.5", path = "../tlock_age", features = ["internal"] }

@@ -31,7 +31,7 @@ The reference interroperable Go implementation is available at [drand/tlock](htt
 
 | Environment        | CLI Command               |
 |:-------------------|:--------------------------|
-| Cargo (Rust 1.67+) | `cargo install tlock` |
+| Cargo (Rust 1.74+) | `cargo install tlock` |
 
 The library is tested against the following targets: `x86_64-unknown-linux-gnu`, `armv7-unknown-linux-gnueabihf`, `aarch64-unknown-linux-gnu`, `wasm32-wasi`.
 
