@@ -41,7 +41,7 @@
 
 | Environment | CLI Command |
 |:------------|:------------|
-| Cargo (Rust 1.67+) | `cargo install --git https://github.com/thibmeu/tlock-rs age-plugin-tlock` |
+| Cargo (Rust 1.74+) | `cargo install --git https://github.com/thibmeu/tlock-rs age-plugin-tlock` |
 
 Read [age installation instructions](https://github.com/FiloSottile/age#installation) to install age. 
 
