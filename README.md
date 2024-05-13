@@ -9,7 +9,7 @@
 
 tlock_age is a library to encrypt and decrypt [age](https://github.com/C2SP/C2SP/blob/main/age.md) filekey using [tlock](https://eprint.iacr.org/2023/189) scheme. It provides an age Identity and Recipient consuming Threshold BLS signatures provided by [drand](https://drand.love/docs/specification/) beacons.
 
-The reference interroperable Go implementation is available at [drand/tlock](https://github.com/drand/tlock).
+The reference interoperable Go implementation is available at [drand/tlock](https://github.com/drand/tlock).
 
 ## Tables of Content
 
@@ -26,7 +26,7 @@ The reference interroperable Go implementation is available at [drand/tlock](htt
 * ASCII Armor
 * tlock header decryption
 * Encryption with public key on G1 and G2
-* Interroperability with Go and JS implementation
+* Interoperability with Go and JS implementation
 * wasm32 compatible library
 
 ## Installation
@@ -50,7 +50,7 @@ This crate does not provide a drand client. You can use [drand_core](https://git
 This software has not been audited. Please use at your sole discretion. With this in mind, dee security relies on the following:
 * [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189) by Nicolas Gailly, Kelsey Melissaris, and Yolan Romailler, and its implementation in [drand/tlock](https://github.com/drand/tlock),
 * [Identity-Based Encryption](https://crypto.stanford.edu/~dabo/papers/bfibe.pdf) by Dan Boneh, and Matthew Franklin, and its implementation in [thibmeu/tlock-rs](https://github.com/thibmeu/tlock-rs),
-* The choosen drand beacon to remain honest,
+* The chosen drand beacon to remain honest,
 * [age](https://github.com/C2SP/C2SP/blob/main/age.md) encryption protocol, and its implementation in [str4d/rage](https://github.com/str4d/rage),
 
 ## FAQ
