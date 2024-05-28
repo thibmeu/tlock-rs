@@ -52,8 +52,8 @@ INPUT
 (U, V, W, sigma, p)
 COMPUTE
 nonce' = V xor H(e(U, sigma))
-       = sigma xor H(r*e(S, H(p))) xor H(e(U, s*H(p)))
-       = sigma xor H(rs*e(g1, H(p))) xor H(rs*e(g1, H(p)))
+       = nonce xor H(r*e(S, H(p))) xor H(e(U, s*H(p)))
+       = nonce xor H(rs*e(g1, H(p))) xor H(rs*e(g1, H(p)))
        = nonce
 M' = W xor H(nonce')
    = M xor H(nonce) xor H(nonce')
