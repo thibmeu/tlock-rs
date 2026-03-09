@@ -85,7 +85,7 @@ dependencies = [
 
 [[package]]
 name = "age-plugin-tlock"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "age",
  "age-core",
@@ -835,9 +835,9 @@ dependencies = [
 
 [[package]]
 name = "drand_core"
-version = "0.0.17"
+version = "0.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76ed3be0d39258d569ecdd3c2a607ab76e81bf28c472a900df4fa1e9b6aa8b9f"
+checksum = "bf03787c42a40934898411f5ca17125df4adb2b0dc733c6b8825d2a8a5546686"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
@@ -854,6 +854,7 @@ dependencies = [
  "time",
  "ureq",
  "url",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2694,7 +2695,7 @@ dependencies = [
 
 [[package]]
 name = "tlock"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "anyhow",
  "ark-bls12-381",
@@ -2717,7 +2718,7 @@ dependencies = [
 
 [[package]]
 name = "tlock_age"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "age",
  "age-core",
