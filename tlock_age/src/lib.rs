@@ -81,7 +81,7 @@ pub fn encrypt<W: Write, R: Read>(
     round: u64,
 ) -> anyhow::Result<(), TLockAgeError> {
     let recipient = Recipient::new(chain_hash, public_key_bytes, round);
-    let encryptor = age::Encryptor::with_recipients(vec![Box::new(recipient)])
+    let encryptor = age::Encryptor::with_recipients(iter::once(&recipient as &dyn age::Recipient))
         .expect("we provided a recipient");
 
     let mut writer = encryptor.wrap_output(dst)?;
@@ -150,8 +150,12 @@ pub fn decrypt_header<R: Read>(src: R) -> anyhow::Result<Header, TLockAgeError> 
     #[cfg(feature = "armor")]
     let src = age::armor::ArmoredReader::new(src);
     let decryptor = match age::Decryptor::new(src) {
-        Ok(age::Decryptor::Recipients(d)) => d,
-        Ok(age::Decryptor::Passphrase(_)) => return Err(TLockAgeError::InvalidRecipient),
+        Ok(d) => {
+            if d.is_scrypt() {
+                return Err(TLockAgeError::InvalidRecipient);
+            }
+            d
+        }
         Err(e) => return Err(TLockAgeError::Decrypt(e)),
     };
 
@@ -214,8 +218,12 @@ pub fn decrypt<W: Write, R: Read>(
     #[cfg(feature = "armor")]
     let src = age::armor::ArmoredReader::new(src);
     let decryptor = match age::Decryptor::new(src) {
-        Ok(age::Decryptor::Recipients(d)) => d,
-        Ok(age::Decryptor::Passphrase(_)) => return Err(TLockAgeError::InvalidRecipient),
+        Ok(d) => {
+            if d.is_scrypt() {
+                return Err(TLockAgeError::InvalidRecipient);
+            }
+            d
+        }
         Err(e) => return Err(TLockAgeError::Decrypt(e)),
     };
 

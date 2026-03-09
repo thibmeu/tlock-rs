@@ -13,17 +13,17 @@ license = "MIT"
 
 [dependencies]
 anyhow = { workspace = true }
-ark-bls12-381 = "0.4.0"
-ark-ec = "0.4.2"
-ark-ff = "0.4.2"
-ark-serialize = "0.4.2"
-itertools = "0.10.5"
+ark-bls12-381 = "0.5.0"
+ark-ec = "0.5.0"
+ark-ff = "0.5.0"
+ark-serialize = "0.5.0"
+itertools = "0.14.0"
 rand = { workspace = true, default-features = false, features = ["getrandom"]}
 serde = { version = "1.0", features = ["derive"] }
-serde_with = "2.3.3"
-sha2 = "0.10.8"
+serde_with = "3.17"
+sha2 = "0.10"
 thiserror = { workspace = true }
-tracing = "0.1.40"
+tracing = "0.1"
 
 [target.'cfg(wasm32)'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
@@ -34,7 +34,7 @@ drand_core = { workspace = true }
 hex = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
 
 [features]
 default = ["rfc9380"]

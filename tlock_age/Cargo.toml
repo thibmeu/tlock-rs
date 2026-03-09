@@ -18,6 +18,7 @@ anyhow = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
 tlock = { path = "../tlock", version = "0.0.5" }
+zeroize = "1.8"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
@@ -28,7 +29,7 @@ rand = { workspace = true, default-features = true }
 getrandom = { workspace = true, features = ["js"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-pprof = { version = "0.11", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
 
 [features]
 default = ["rfc9380"]

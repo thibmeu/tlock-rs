@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 
 members = [
     "age-plugin-tlock",
@@ -7,12 +8,12 @@ members = [
 ]
 
 [workspace.dependencies]
-age = "0.9"
-age-core = "0.9"
+age = "0.11"
+age-core = "0.11"
 anyhow = "1.0"
-criterion = "0.4"
-drand_core = "0.0.15"
+criterion = "0.5"
+drand_core = "0.0.16"
 getrandom = "0.2"
 hex = "0.4"
 rand = { version = "0.8", default-features = false }
-thiserror = "1.0.57"
+thiserror = "2.0"

@@ -12,10 +12,11 @@ pub fn run_state_machine(state_machine: String) {
         state_machine,
         PLUGIN_NAME,
         |info: &RecipientInfo, round: &str| {
-            beacon::RandomnessBeaconTime::new(
+            beacon::RandomnessBeaconTime::parse(
                 &chain::ChainTimeInfo::new(info.genesis_time(), info.period()),
                 round,
             )
+            .unwrap()
             .round()
         },
         |url: &str, header: &Header| {
@@ -47,5 +48,5 @@ fn main() {
         return run_state_machine(state_machine);
     }
 
-    return generate(cli.remote.unwrap().as_str());
+    generate(cli.remote.unwrap().as_str())
 }

@@ -1,11 +1,14 @@
-use std::{collections::HashMap, io};
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
 
 use age::{Identity, Recipient};
 use age_core::format::{FileKey, Stanza};
 use age_plugin::{
     identity::{self, IdentityPluginV1},
     recipient::{self, RecipientPluginV1},
-    Callbacks,
+    Callbacks, PluginHandler,
 };
 use bincode::{config, Decode, Encode};
 
@@ -60,7 +63,7 @@ impl RecipientInfo {
     }
 }
 
-struct RecipientPlugin {
+pub struct RecipientPlugin {
     plugin_name: String,
     info: Option<RecipientInfo>,
     parse_round: fn(&RecipientInfo, &str) -> u64,
@@ -116,6 +119,10 @@ impl RecipientPluginV1 for RecipientPlugin {
         todo!()
     }
 
+    fn labels(&mut self) -> HashSet<String> {
+        HashSet::new()
+    }
+
     fn wrap_file_keys(
         &mut self,
         file_keys: Vec<FileKey>,
@@ -138,7 +145,10 @@ impl RecipientPluginV1 for RecipientPlugin {
             tlock_age::internal::Recipient::new(&info.hash, &info.public_key_bytes, round);
         Ok(Ok(file_keys
             .into_iter()
-            .map(|file_key| recipient.wrap_file_key(&file_key).unwrap())
+            .map(|file_key| {
+                let (stanzas, _labels) = recipient.wrap_file_key(&file_key).unwrap();
+                stanzas
+            })
             .collect()))
     }
 }
@@ -214,7 +224,7 @@ impl HTTPIdentityInfo {
     }
 }
 
-struct IdentityPlugin {
+pub struct IdentityPlugin {
     plugin_name: String,
     info: Option<IdentityInfo>,
     get_signature: fn(url: &str, header: &Header) -> Vec<u8>,
@@ -260,7 +270,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         let mut file_keys = HashMap::with_capacity(files.len());
 
         for (file, stanzas) in files.iter().enumerate() {
-            for (_stanza_index, stanza) in stanzas.iter().enumerate() {
+            for stanza in stanzas.iter() {
                 if stanza.tag != STANZA_TAG {
                     continue;
                 }
@@ -295,6 +305,40 @@ impl IdentityPluginV1 for IdentityPlugin {
     }
 }
 
+/// Plugin handler for age-plugin-tlock
+pub struct TlockPluginHandler {
+    plugin_name: String,
+    parse_round: fn(&RecipientInfo, &str) -> u64,
+    get_signature: fn(&str, &Header) -> Vec<u8>,
+}
+
+impl TlockPluginHandler {
+    pub fn new(
+        plugin_name: &str,
+        parse_round: fn(&RecipientInfo, &str) -> u64,
+        get_signature: fn(&str, &Header) -> Vec<u8>,
+    ) -> Self {
+        Self {
+            plugin_name: plugin_name.to_owned(),
+            parse_round,
+            get_signature,
+        }
+    }
+}
+
+impl PluginHandler for TlockPluginHandler {
+    type RecipientV1 = RecipientPlugin;
+    type IdentityV1 = IdentityPlugin;
+
+    fn recipient_v1(self) -> io::Result<Self::RecipientV1> {
+        Ok(RecipientPlugin::new(&self.plugin_name, self.parse_round))
+    }
+
+    fn identity_v1(self) -> io::Result<Self::IdentityV1> {
+        Ok(IdentityPlugin::new(&self.plugin_name, self.get_signature))
+    }
+}
+
 /// Run the state machine for the plugin, as defined on [GitHub](https://github.com/C2SP/C2SP/blob/main/age-plugin.md).
 /// This is the entry point for the plugin. It is called by the age client.
 pub fn run_state_machine(
@@ -306,8 +350,7 @@ pub fn run_state_machine(
     // The plugin was started by an age client; run the state machine.
     age_plugin::run_state_machine(
         &state_machine,
-        || RecipientPlugin::new(plugin_name, parse_round),
-        || IdentityPlugin::new(plugin_name, get_signature),
+        TlockPluginHandler::new(plugin_name, parse_round, get_signature),
     )
 }
 
