@@ -2764,7 +2764,7 @@ dependencies = [
  "anyhow",
  "criterion",
  "drand_core",
- "getrandom 0.4.2",
+ "getrandom 0.2.17",
  "hex",
  "pprof",
  "rand 0.10.0",

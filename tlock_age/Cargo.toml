@@ -25,8 +25,8 @@ criterion = { workspace = true, features = ["html_reports"] }
 drand_core = { workspace = true }
 rand = { workspace = true, default-features = true }
 
-[target.'cfg(wasm32)'.dev-dependencies]
-getrandom = { workspace = true, features = ["wasm_js"] }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
