@@ -18,15 +18,15 @@ ark-ec = "0.5.0"
 ark-ff = "0.5.0"
 ark-serialize = "0.5.0"
 itertools = "0.14.0"
-rand = { workspace = true, default-features = false, features = ["getrandom", "std", "std_rng"]}
+rand = { workspace = true, default-features = false, features = ["std", "std_rng", "thread_rng"]}
 serde = { version = "1.0", features = ["derive"] }
-serde_with = "3.17"
+serde_with = "3"
 sha2 = "0.10"
 thiserror = { workspace = true }
 tracing = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }

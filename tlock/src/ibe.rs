@@ -10,8 +10,8 @@ use ark_ec::{
 use ark_ff::{field_hashers::DefaultFieldHasher, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use itertools::Itertools;
-use rand::distributions::Uniform;
-use rand::Rng;
+use rand::distr::Uniform;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use serde_with::DeserializeAs;
 use sha2::{digest::Update, Digest, Sha256};
@@ -211,13 +211,13 @@ pub fn encrypt<I: AsRef<[u8]>, M: AsRef<[u8]>>(
         "plaintext too long for the block size"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     // 1. Compute Gid = e(master,Q_id)
     let gid = master.projective_pairing(id.as_ref())?;
 
     // 2. Derive random sigma
     let sigma: [u8; 16] = (0..16)
-        .map(|_| rng.sample(Uniform::new(0u8, 8u8)))
+        .map(|_| rng.sample(Uniform::new(0u8, 8u8).unwrap()))
         .collect_vec()
         .try_into()
         .map_err(|_| IBEError::MessageSize)?;

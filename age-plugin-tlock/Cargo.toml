@@ -15,8 +15,8 @@ license = "MIT"
 age = { workspace = true }
 age-core = { workspace = true }
 age-plugin = "0.6"
-bincode = "2.0.0-rc.3"
-clap = { version = "4.5", features = ["derive"] }
+bincode = "2.0.1"
+clap = { version = "4.6", features = ["derive"] }
 clap-verbosity-flag = "3.0"
 drand_core = { workspace = true }
 hex = { workspace = true }
