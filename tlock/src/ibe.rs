@@ -349,14 +349,15 @@ where
                 .finalize()
                 .to_vec();
             *h.first_mut().unwrap() = h.first().unwrap() >> BITS_TO_MASK_FOR_BLS12381;
-            // test if we can build a valid scalar out of n
-            // this is a hash method to be compatible with the existing implementation
-            let rev: Vec<u8> = h.iter().copied().rev().collect();
-            if ScalarField::from_le_bytes_mod_order(&rev)
-                .serialized_size(ark_serialize::Compress::Yes)
-                > 0
-            {
-                buf.copy_from_slice(&rev);
+            // Check if the masked hash is a valid scalar (< Fr modulus).
+            // Reverse to little-endian in place, then attempt canonical
+            // deserialization. If it succeeds the value is in range; if it
+            // returns Err the value was >= Fr::MODULUS and we advance to
+            // the next iteration. This mirrors the Go reference
+            // (drand/kyber UnmarshalBinary) and JS (BigInt < Fr.ORDER).
+            h.reverse();
+            if ScalarField::deserialize_compressed(h.as_slice()).is_ok() {
+                buf.copy_from_slice(&h);
                 return;
             }
         }
@@ -366,6 +367,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fr modulus for BLS12-381 in big-endian bytes.
+    const ORDER_BE: [u8; 32] = [
+        0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1, 0xd8,
+        0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
+        0x00, 0x01,
+    ];
 
     #[test]
     fn test_xor_extended_truth_table() {
@@ -381,5 +389,132 @@ mod tests {
         let b = vec![];
         let x = vec![];
         assert_eq!(xor(&a, &b), x);
+    }
+
+    /// Verify that ExpandMsgDrand rejects values >= Fr modulus and advances
+    /// to the next iteration, matching the Go (drand/kyber) and JS (tlock-js)
+    /// implementations.
+    ///
+    /// This is a regression test: the previous check
+    /// `serialized_size(Compress::Yes) > 0` always returned 32 > 0 = true,
+    /// so values >= Fr.ORDER were silently reduced via from_le_bytes_mod_order,
+    /// producing a different scalar than Go/JS (which skip to i+1).
+    #[test]
+    fn test_expand_msg_drand_rejects_out_of_range() {
+        // Scan for an input where i=1 hash (after masking) >= Fr.ORDER.
+        // With ~9.3% probability per trial this is found quickly.
+        let mut found = false;
+        for trial in 0u32..200 {
+            let msg = Sha256::new()
+                .chain(b"IBE-H3")
+                .chain(trial.to_le_bytes())
+                .chain(b"test")
+                .finalize();
+
+            let mut h = Sha256::new()
+                .chain(1u16.to_le_bytes())
+                .chain(msg.as_slice())
+                .finalize()
+                .to_vec();
+            h[0] >>= 1; // BITS_TO_MASK_FOR_BLS12381 = 1
+
+            // Check if this hash >= ORDER (big-endian comparison after masking)
+            if h.as_slice() >= &ORDER_BE[..] {
+                // This input triggers the bug in the old code.
+                // With the fix, expand_message must skip i=1 and use i=2+.
+                let mut buf_fixed = [0u8; 32];
+                ExpandMsgDrand::<Sha256>::expand_message(msg.as_slice(), &[], &mut buf_fixed);
+
+                // The result must NOT be the reduced i=1 value.
+                let reduced = ScalarField::from_le_bytes_mod_order(
+                    &h.iter().copied().rev().collect::<Vec<u8>>(),
+                );
+                let mut reduced_bytes = vec![];
+                reduced.serialize_compressed(&mut reduced_bytes).unwrap();
+
+                assert_ne!(
+                    buf_fixed.as_slice(),
+                    reduced_bytes.as_slice(),
+                    "expand_message returned mod-reduced i=1 value for trial {trial}; \
+                     it should have rejected and advanced to the next iteration"
+                );
+
+                found = true;
+                break;
+            }
+        }
+        assert!(
+            found,
+            "failed to find a test case where i=1 hash >= Fr.ORDER within 200 trials"
+        );
+    }
+
+    /// Exhaustive cross-implementation check: reimplement the Go/JS reference
+    /// h3 algorithm in pure Rust (using byte-level Fr.ORDER comparison) and
+    /// verify ExpandMsgDrand produces identical output for 10,000 random inputs.
+    ///
+    /// The reference algorithm (drand/kyber ibe.go, tlock-js):
+    ///   buffer = SHA256("IBE-H3" || sigma || msg)
+    ///   for i = 1..(u16::MAX - 1):
+    ///     h = SHA256(i_LE16 || buffer)
+    ///     h[0] >>= 1       // mask top bit for BLS12-381
+    ///     rev = reverse(h)  // big-endian -> little-endian
+    ///     if h < Fr.ORDER:  // big-endian byte comparison
+    ///       return rev
+    #[test]
+    fn test_expand_msg_drand_matches_reference_10k() {
+        let mut rejected_count = 0u32;
+
+        for trial in 0u32..10_000 {
+            // Generate deterministic but varied input
+            let sigma = Sha256::new()
+                .chain(b"sigma")
+                .chain(trial.to_le_bytes())
+                .finalize();
+            let msg_bytes = Sha256::new()
+                .chain(b"msg")
+                .chain(trial.to_le_bytes())
+                .finalize();
+
+            // Compute buffer = SHA256("IBE-H3" || sigma || msg) -- same as encrypt() does
+            let buffer = Sha256::new()
+                .chain(b"IBE-H3")
+                .chain(sigma.as_slice())
+                .chain(msg_bytes.as_slice())
+                .finalize();
+
+            // Reference implementation: iterate until valid scalar found
+            let mut reference_result = [0u8; 32];
+            for i in 1u16..u16::MAX {
+                let mut h = Sha256::new()
+                    .chain(i.to_le_bytes())
+                    .chain(buffer.as_slice())
+                    .finalize()
+                    .to_vec();
+                h[0] >>= 1; // BITS_TO_MASK_FOR_BLS12381
+
+                // Go/JS check: is h (big-endian) < Fr.ORDER?
+                if h.as_slice() < &ORDER_BE[..] {
+                    let rev: Vec<u8> = h.iter().copied().rev().collect();
+                    reference_result.copy_from_slice(&rev);
+                    if i > 1 {
+                        rejected_count += 1;
+                    }
+                    break;
+                }
+            }
+
+            // ExpandMsgDrand result
+            let mut expand_result = [0u8; 32];
+            ExpandMsgDrand::<Sha256>::expand_message(buffer.as_slice(), &[], &mut expand_result);
+
+            assert_eq!(expand_result, reference_result, "mismatch at trial {trial}");
+        }
+
+        // Sanity: we must have hit at least some rejections (expected ~930 out of 10k)
+        assert!(
+            rejected_count > 0,
+            "no rejections seen in 10k trials -- test is not exercising the rejection path"
+        );
     }
 }
