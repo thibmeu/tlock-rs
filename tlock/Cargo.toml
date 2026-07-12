@@ -3,7 +3,7 @@ name = "tlock"
 description = "Rust encryption library for practical time-lock encryption."
 version = "0.0.8"
 authors = ["Thibault Meunier <crates@thibault.uk>"]
-edition = "2021"
+edition = "2024"
 readme = "./README.md"
 homepage = "https://github.com/thibmeu/tlock-rs"
 repository = "https://github.com/thibmeu/tlock-rs"
@@ -13,11 +13,11 @@ license = "MIT"
 
 [dependencies]
 anyhow = { workspace = true }
-ark-bls12-381 = "0.5.0"
-ark-ec = "0.5.0"
-ark-ff = "0.5.0"
-ark-serialize = "0.5.0"
-itertools = "0.14.0"
+ark-bls12-381 = "0.6"
+ark-ec = "0.6"
+ark-ff = "0.6"
+ark-serialize = "0.6"
+itertools = "0.15"
 rand = { workspace = true, default-features = false, features = ["std", "std_rng", "thread_rng"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3"

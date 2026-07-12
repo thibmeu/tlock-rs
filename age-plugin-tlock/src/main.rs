@@ -1,5 +1,5 @@
 use age_plugin_tlock::{HTTPIdentityInfo, RecipientInfo};
-use drand_core::{beacon, chain, HttpClient};
+use drand_core::{HttpClient, beacon, chain};
 use tlock_age::Header;
 
 mod cli;

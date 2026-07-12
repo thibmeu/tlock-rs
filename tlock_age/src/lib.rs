@@ -26,7 +26,7 @@ pub mod internal;
 
 use internal::{HeaderIdentity, Identity, Recipient};
 use std::{
-    io::{self, copy, Read, Write},
+    io::{self, Read, Write, copy},
     iter,
 };
 use thiserror::Error;

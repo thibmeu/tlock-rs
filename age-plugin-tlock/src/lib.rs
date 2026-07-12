@@ -6,13 +6,13 @@ use std::{
 use age::{Identity, Recipient};
 use age_core::format::{FileKey, Stanza};
 use age_plugin::{
+    Callbacks, PluginHandler,
     identity::{self, IdentityPluginV1},
     recipient::{self, RecipientPluginV1},
-    Callbacks, PluginHandler,
 };
-use bincode::{config, Decode, Encode};
+use bincode::{Decode, Encode, config};
 
-use tlock_age::{internal::STANZA_TAG, Header};
+use tlock_age::{Header, internal::STANZA_TAG};
 
 /// Environment variable read to get round information non-interactively.
 pub const ROUND_ENV: &str = "ROUND";

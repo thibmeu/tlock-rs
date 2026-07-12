@@ -3,7 +3,7 @@ name = "age-plugin-tlock"
 description = "tlock plugin for age clients."
 version = "0.1.4"
 authors = ["Thibault Meunier <crates@thibault.uk>"]
-edition = "2021"
+edition = "2024"
 readme = "./README.md"
 homepage = "https://github.com/thibmeu/tlock-rs"
 repository = "https://github.com/thibmeu/tlock-rs"
@@ -15,7 +15,7 @@ license = "MIT"
 age = { workspace = true }
 age-core = { workspace = true }
 age-plugin = "0.6"
-bincode = "2.0.1"
+bincode = "2"
 clap = { version = "4.6", features = ["derive"] }
 clap-verbosity-flag = "3.0"
 drand_core = { workspace = true }

@@ -1,20 +1,20 @@
 use ark_bls12_381::{
-    g1, g2, Bls12_381, Fr as ScalarField, G1Affine, G1Projective, G2Affine, G2Projective,
+    Bls12_381, Fr as ScalarField, G1Affine, G1Projective, G2Affine, G2Projective, g1, g2,
 };
 use ark_ec::{
-    hashing::{curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve},
+    AffineRepr, CurveGroup,
+    hashing::{HashToCurve, curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher},
     models::short_weierstrass,
     pairing::{Pairing, PairingOutput},
-    AffineRepr, CurveGroup,
 };
-use ark_ff::{field_hashers::DefaultFieldHasher, PrimeField};
+use ark_ff::{PrimeField, field_hashers::DefaultFieldHasher};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use itertools::Itertools;
-use rand::distr::Uniform;
 use rand::RngExt;
+use rand::distr::Uniform;
 use serde::{Deserialize, Serialize};
 use serde_with::DeserializeAs;
-use sha2::{digest::Update, Digest, Sha256};
+use sha2::{Digest, Sha256, digest::Update};
 use std::{marker::PhantomData, ops::Mul};
 use thiserror::Error;
 

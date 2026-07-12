@@ -12,7 +12,7 @@ age = "0.11"
 age-core = "0.11"
 anyhow = "1.0"
 criterion = "0.5"
-drand_core = "0.0.18"
+drand_core = "0.0.19"
 getrandom = "0.4"
 hex = "0.4"
 rand = { version = "0.10", default-features = false }
