@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-07-12
+
+### Changed
+
+- Update dependencies
+- Migrate to Rust edition 2024, and update Rust to 1.94
+
 ## [0.0.5] - 2024-02-29
 
 ### Changed
