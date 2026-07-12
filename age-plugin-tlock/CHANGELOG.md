@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-07-12
+
+### Changed
+
+- Update tlock_age to 0.0.10, fixing sigma entropy and scalar validation
+
 ## [0.1.5] - 2026-07-12
 
 ### Changed

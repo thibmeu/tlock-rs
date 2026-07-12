@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-07-12
+
+### Fixed
+
+- Sigma generation used 3 bits of entropy per byte instead of 8, weakening the message key mask to 48 bits
+- ExpandMsgDrand scalar validation always passed, silently reducing out-of-range hashes instead of rejecting them. Ciphertexts previously produced from such hashes (~9.3%) were incompatible with the Go and JS implementations and no longer decrypt
+
 ## [0.0.9] - 2026-07-12
 
 ### Changed
