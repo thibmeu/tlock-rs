@@ -8,8 +8,8 @@ members = [
 ]
 
 [workspace.dependencies]
-age = "0.11"
-age-core = "0.11"
+age = "0.12"
+age-core = "0.12"
 anyhow = "1.0"
 criterion = "0.5"
 drand_core = "0.0.19"
